@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Thu Oct 29 21:07:11 2015 (-0400)
+| Last-Updated: Tue Nov  3 12:02:29 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 15
+|     Update #: 17
 '''
 
 import contextlib
@@ -165,3 +165,51 @@ def debug_support(capture_ctrl_c=True):
 #     sys.settrace(fn)
 #     yield
 #     sys.settrace(lambda _, __, ___: None)
+
+
+class Namespace(object):
+    """Simple object for storing attributes.
+
+    Implements equality by attribute names and values, and provides a simple
+    string representation.
+    """
+    __hash__ = None
+    def __repr__(self):
+        type_name = type(self).__name__
+        arg_strings = []
+        for name, value in self.__dict__.iteritems():
+            arg_strings.append('%s=%r' % (name, value))
+        return '%s(%s)' % (type_name, ', '.join(arg_strings))
+
+    def __init__(self, **kwargs):
+        for name in kwargs:
+            setattr(self, name, kwargs[name])
+
+
+    def __eq__(self, other):
+        if not isinstance(other, Namespace):
+            return NotImplemented
+        return vars(self) == vars(other)
+
+    def __ne__(self, other):
+        if not isinstance(other, Namespace):
+            return NotImplemented
+        return not (self == other)
+
+    def __contains__(self, key):
+        return key in self.__dict__
+
+    def __getitem__(self, key):
+        return self.__dict__[key]
+
+    def __setitem__(self, key, value):
+        setattr(self, key, value)
+
+    def __delitem__(self, key):
+        del self.__dict__[key]
+
+    def __iter__(self):
+        return iter(self.__dict__)
+
+    def __len__(self):
+        return len(self.__dict__)
