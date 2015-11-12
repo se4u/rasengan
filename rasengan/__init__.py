@@ -3,11 +3,11 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Tue Nov  3 12:02:29 2015 (-0500)
+| Last-Updated: Thu Nov 12 01:38:43 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 17
+|     Update #: 29
 '''
-
+import collections
 import contextlib
 import time
 import numpy
@@ -86,13 +86,14 @@ def reseed_ctm(seed, reset=True):
     ''' A context manager for seeding a particular groups of statements.
     and then resetting the seed after executing the statements (by default)
     '''
+    state = random.getstate()
     numpy.random.seed(seed)
     random.seed(seed)
     yield
     if reset:
         numpy.random.seed(seed)
         random.seed(seed)
-
+        random.setstate(state)
 
 @contextlib.contextmanager
 def debug_support(capture_ctrl_c=True):
@@ -167,7 +168,7 @@ def debug_support(capture_ctrl_c=True):
 #     sys.settrace(lambda _, __, ___: None)
 
 
-class Namespace(object):
+class Namespace(collections.MutableMapping):
     """Simple object for storing attributes.
 
     Implements equality by attribute names and values, and provides a simple
@@ -213,3 +214,72 @@ class Namespace(object):
 
     def __len__(self):
         return len(self.__dict__)
+
+
+def flatten(lol):
+    ''' Convert a nested list to a flat list
+    Params
+    ------
+    lol : List of List
+    Returns
+    -------
+    l : list
+    '''
+    l = []
+    for e in lol:
+        if isinstance(e, list):
+            l.extend(flatten(e))
+        else:
+            l.append(e)
+    return l
+
+def batch_list(lst, n=1):
+    l = len(lst)
+    for ndx in range(0, l, n):
+        yield lst[ndx:min(ndx + n, l)]
+
+class NameSpacer(
+        collections.MutableMapping,
+        collections.MutableSequence,
+        collections.MutableSet):
+    def __init__(self, obj):
+        self.obj = obj
+
+    def __repr__(self):
+        return self.obj.__repr__()
+
+    def __eq__(self, other):
+        return self.obj == other
+
+    def __ne__(self, other):
+        return not (self.obj == other)
+
+    def __contains__(self, key):
+        return key in self.obj
+
+    def __getitem__(self, key):
+        return self.obj.__getitem__(key)
+
+    def __setitem__(self, key, value):
+        self.obj.__setitem__(key, value)
+
+    def __delitem__(self, key):
+        self.obj.__delitem__(key)
+
+    def __iter__(self):
+        return self.obj.__iter__()
+
+    def __len__(self):
+        return self.obj.__len__()
+
+    def insert(self, i, e):
+        return self.obj.insert(i, e)
+
+    def add(self, e):
+        self.obj.add(e)
+
+    def discard(self, e):
+        self.obj.discard(e)
+
+def namespacer(obj):
+    return NameSpacer(obj)
