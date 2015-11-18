@@ -3,15 +3,36 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Thu Nov 12 01:38:43 2015 (-0500)
+| Last-Updated: Wed Nov 18 16:55:21 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 29
+|     Update #: 50
 '''
 import collections
 import contextlib
 import time
 import numpy
 import random
+import print_hook
+
+def print_indent_fn(text):
+    if len(text) > 0:
+        indent = print_indent_fn.indent
+        white_space = (4 * indent * ' ')
+        return white_space + text.replace('\n', white_space + '\n')
+    else:
+        return text
+
+def setup_print_indent():
+    print_indent_fn.indent = 0
+    setup_print_indent.printhook = print_hook.PrintHook().start(
+        func=print_indent_fn, override='stdout')
+    return setup_print_indent.printhook
+
+def increase_print_indent():
+    print_indent_fn.indent += 1
+
+def decrease_print_indent():
+    print_indent_fn.indent -= 1
 
 
 @contextlib.contextmanager
@@ -28,9 +49,10 @@ def tictoc(msg):
     '''
     t = time.time()
     print "Started", msg
+    increase_print_indent()
     yield
     print "Completed", msg, "in %0.1fs" % (time.time() - t)
-
+    decrease_print_indent()
 
 class announce(object):
 
@@ -180,9 +202,18 @@ class Namespace(collections.MutableMapping):
         arg_strings = []
         for name, value in self.__dict__.iteritems():
             arg_strings.append('%s=%r' % (name, value))
-        return '%s(%s)' % (type_name, ', '.join(arg_strings))
+        if self.__name is None:
+            return '%s(%s)' % (type_name, ', '.join(arg_strings))
+        else:
+            return '%s(%s, %s)' % (
+                type_name, self.__name, ', '.join(arg_strings))
 
-    def __init__(self, **kwargs):
+    def __init__(self, *args, **kwargs):
+        if len(args) > 0:
+            assert len(args) == 1
+            self.__name = args[0]
+        else:
+            self.__name = None
         for name in kwargs:
             setattr(self, name, kwargs[name])
 
@@ -215,6 +246,23 @@ class Namespace(collections.MutableMapping):
     def __len__(self):
         return len(self.__dict__)
 
+    def update_and_append_prefix(self, ns, prefix=None):
+        ''' Add keys from given namespace object. If prefix is None this
+        delegates to the defualt update method.
+        Params
+        ------
+        ns     : The namespace object.
+        prefix : The prefix.
+        Returns
+        -------
+        self
+        '''
+        if prefix is None:
+            self.update(ns)
+        else:
+            for k in ns:
+                self[prefix + k] = ns[k]
+        return self
 
 def flatten(lol):
     ''' Convert a nested list to a flat list
@@ -283,3 +331,36 @@ class NameSpacer(
 
 def namespacer(obj):
     return NameSpacer(obj)
+
+def sample_from_list(lst, samples, return_generator=False):
+    ''' Sample `samples` many points from a lst that are spaced evenly apart.
+    If samples is a float then we may return a little less than exactly specified
+    since it is not possible to return the exact percentage requested.
+    Params
+    ------
+    lst : A list of objects.
+    samples : int or float
+      In case samples is a floating point it should be between 0 and 1.
+      Then samples represents the fraction of the list to return. Otherwise
+      samples represents the number of samples to return.
+    Returns
+    -------
+    A subsampled list with
+    '''
+    l = len(lst)
+    if isinstance(samples, float):
+        assert 0 <= samples <= 1
+        samples = int(l * samples)
+    else:
+        assert isinstance(samples, int)
+    if samples == 0:
+        return []
+    elif samples >= l:
+        return lst
+    else:
+        # Find out the step size to take.
+        step_size = int(l / samples)
+        if not return_generator:
+            return lst[:samples * step_size:step_size]
+        else:
+            return (lst[i] for i in xrange(0, samples * step_size, step_size))
