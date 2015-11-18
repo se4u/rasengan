@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Wed Nov 18 16:55:21 2015 (-0500)
+| Last-Updated: Wed Nov 18 17:34:33 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 50
+|     Update #: 54
 '''
 import collections
 import contextlib
@@ -17,8 +17,8 @@ import print_hook
 def print_indent_fn(text):
     if len(text) > 0:
         indent = print_indent_fn.indent
-        white_space = (4 * indent * ' ')
-        return white_space + text.replace('\n', white_space + '\n')
+        white_space = (2 * indent * ' ')
+        return text.replace('\n', '\n' + white_space)
     else:
         return text
 
@@ -51,8 +51,8 @@ def tictoc(msg):
     print "Started", msg
     increase_print_indent()
     yield
-    print "Completed", msg, "in %0.1fs" % (time.time() - t)
     decrease_print_indent()
+    print "Completed", msg, "in %0.1fs" % (time.time() - t)
 
 class announce(object):
 
