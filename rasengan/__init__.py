@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Wed Nov 18 17:34:33 2015 (-0500)
+| Last-Updated: Fri Nov 20 02:21:59 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 54
+|     Update #: 63
 '''
 import collections
 import contextlib
@@ -48,8 +48,8 @@ def tictoc(msg):
     Completed Description in XXXs
     '''
     t = time.time()
-    print "Started", msg
     increase_print_indent()
+    print "Started", msg
     yield
     decrease_print_indent()
     print "Completed", msg, "in %0.1fs" % (time.time() - t)
@@ -364,3 +364,19 @@ def sample_from_list(lst, samples, return_generator=False):
             return lst[:samples * step_size:step_size]
         else:
             return (lst[i] for i in xrange(0, samples * step_size, step_size))
+
+def validate_np_array(value, name=None, _max=1e6, _min=-1e6, mean=1e6, silent_fail=False):
+    if isinstance(value, numpy.ndarray):
+        msg_template = '%s breached %s limit, limit=%f, value=%f\n'
+        for limit_type, v, l in [('max', value.max(), _max),
+                                 ('abs-of-mean', abs(value.mean()), mean),
+                                 ('mean-of-abs', numpy.absolute(value).mean(), mean)]:
+            assert v < l, msg_template%(str(name), limit_type, l, v)
+        for limit_type, v, l in [('min', value.min(), _min)]:
+            assert v > l, msg_template%(str(name), limit_type, l, v)
+    else:
+        if not silent_fail:
+            raise NotImplementedError
+        else:
+            pass
+    return

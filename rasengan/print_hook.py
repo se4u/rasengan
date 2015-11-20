@@ -3,9 +3,9 @@
 | Description : A hook to override stdin and stdout.
 | Author      : Pushpendre Rastogi
 | Created     : Wed Nov 18 16:19:20 2015 (-0500)
-| Last-Updated: Wed Nov 18 17:20:45 2015 (-0500)
+| Last-Updated: Wed Nov 18 18:04:21 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 14
+|     Update #: 16
 '''
 import sys
 
@@ -64,8 +64,10 @@ class PrintHook(object):
         self.origOut.write(processed_text)
         return
 
-    def __getattr__(self, name):
-        ''' delegate all other methods to origOut so that we
-        don't have to override them'''
+    def flush(self):
+        self.origOut.flush()
 
-        return getattr(self.origOut, name)
+    # def __getattr__(self, name):
+    #     ''' delegate all other methods to origOut so that we
+    #     don't have to override them'''
+    #     return getattr(self.origOut, name)
