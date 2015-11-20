@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Fri Nov 20 02:21:59 2015 (-0500)
+| Last-Updated: Fri Nov 20 14:57:50 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 63
+|     Update #: 70
 '''
 import collections
 import contextlib
@@ -52,6 +52,7 @@ def tictoc(msg):
     print "Started", msg
     yield
     decrease_print_indent()
+    print
     print "Completed", msg, "in %0.1fs" % (time.time() - t)
 
 class announce(object):
@@ -128,10 +129,20 @@ def debug_support(capture_ctrl_c=True):
     import traceback
     import sys
     import signal
-    call_pdb = lambda _sig, _frame: pdb.set_trace()
+    import code
+    def top_frame(frame):
+        if frame.f_back is None:
+            return frame
+        else:
+            return top_frame(frame.f_back)
+
+    call_pdb = (lambda _sig, _frame:
+                code.InteractiveConsole(dict(_frame=_frame, top_frame=top_frame)).interact(
+                    "Entering python shell. Press Ctrl-d to resume execution."))
     signal.signal(signal.SIGUSR1, call_pdb)
     if capture_ctrl_c:
         signal.signal(signal.SIGINT, call_pdb)
+        pass
     try:
         yield
     except:
@@ -365,15 +376,23 @@ def sample_from_list(lst, samples, return_generator=False):
         else:
             return (lst[i] for i in xrange(0, samples * step_size, step_size))
 
-def validate_np_array(value, name=None, _max=1e6, _min=-1e6, mean=1e6, silent_fail=False):
+def validate_np_array(
+        value, name=None, _max=1e6, _min=-1e6, mean=1e6, silent_fail=False,
+        describe=0):
     if isinstance(value, numpy.ndarray):
         msg_template = '%s breached %s limit, limit=%f, value=%f\n'
         for limit_type, v, l in [('max', value.max(), _max),
                                  ('abs-of-mean', abs(value.mean()), mean),
                                  ('mean-of-abs', numpy.absolute(value).mean(), mean)]:
             assert v < l, msg_template%(str(name), limit_type, l, v)
+            if describe:
+                print 'Parameter %s limit_type %s, limit=%f, value=%f'%(
+                    str(name), limit_type, l, v)
         for limit_type, v, l in [('min', value.min(), _min)]:
             assert v > l, msg_template%(str(name), limit_type, l, v)
+            if describe:
+                print 'Parameter %s limit_type %s, limit=%f, value=%f'%(
+                    str(name), limit_type, l, v)
     else:
         if not silent_fail:
             raise NotImplementedError
