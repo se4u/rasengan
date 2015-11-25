@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Fri Nov 20 14:57:50 2015 (-0500)
+| Last-Updated: Tue Nov 24 15:55:02 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 70
+|     Update #: 72
 '''
 import collections
 import contextlib
@@ -29,7 +29,11 @@ def setup_print_indent():
     return setup_print_indent.printhook
 
 def increase_print_indent():
-    print_indent_fn.indent += 1
+    try:
+        print_indent_fn.indent += 1
+    except AttributeError:
+        setup_print_indent()
+        increase_print_indent()
 
 def decrease_print_indent():
     print_indent_fn.indent -= 1
