@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Tue Nov 24 15:55:02 2015 (-0500)
+| Last-Updated: Fri Dec  4 17:56:44 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 72
+|     Update #: 73
 '''
 import collections
 import contextlib
@@ -82,6 +82,11 @@ class announce(object):
             return f(*args, **kwargs)
         return runtime_wrapper
 
+@contextlib.contextmanager
+def announce_ctm(task):
+    print "Started", task
+    yield
+    print "Finished", task
 
 class reseed(object):
 
