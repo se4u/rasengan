@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Fri Dec  4 17:56:44 2015 (-0500)
+| Last-Updated: Fri Dec  4 20:24:24 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 73
+|     Update #: 79
 '''
 import collections
 import contextlib
@@ -84,8 +84,11 @@ class announce(object):
 
 @contextlib.contextmanager
 def announce_ctm(task):
+    increase_print_indent()
     print "Started", task
     yield
+    decrease_print_indent()
+    print
     print "Finished", task
 
 class reseed(object):
@@ -339,6 +342,11 @@ class NameSpacer(
 
     def __len__(self):
         return self.obj.__len__()
+
+    def __add__(self, right_obj):
+        return (self.obj.__add__(right_obj.obj)
+                if isinstance(right_obj, NameSpacer)
+                else self.obj.__add__(right_obj))
 
     def insert(self, i, e):
         return self.obj.insert(i, e)
