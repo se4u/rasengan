@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Sun Dec  6 20:38:47 2015 (-0500)
+| Last-Updated: Sun Dec  6 22:15:31 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 96
+|     Update #: 109
 '''
 import collections
 import contextlib
@@ -13,6 +13,7 @@ import time
 import numpy
 import random
 import print_hook
+import sys
 
 def print_indent_fn(text):
     if len(text) > 0:
@@ -139,7 +140,6 @@ def debug_support(capture_ctrl_c=True):
     except ImportError:
         import pdb
     import traceback
-    import sys
     import signal
     import code
     def top_frame(frame):
@@ -420,33 +420,52 @@ def validate_np_array(
 def sort_dictionary_by_values_in_descending_order(d):
     return sorted(d.items(), key=lambda x: x[1], reverse=True)
 
+def get_tokenizer():
+    from pattern.en import tokenize
+    return lambda x: tokenize(x)[0].split(' ')
+
 def pipeline_tokenizer():
     ''' This function can be called from the cmd line to
     tokenize files from command line.
     '''
-    from nltk.tokenize import TweetTokenizer
-    tknzr = TweetTokenizer()
-    import sys
+    tknzr = get_tokenizer()
     for row in sys.stdin:
         print ' '.join(tknzr.tokenize(row))
 
-def pipeline_dictionary(tokenize=1, lowercase=1):
+def pipeline_dictionary(tokenize=0, lowercase=0):
     ''' This function is called from the commandline to extract a dictionary
     from a file after tokenizing it.
     '''
-    if tokenize:
-        from pattern.en import tokenize
-        tokenizer = lambda x: tokenize(x)[0].split(' ')
-    else:
-        tokenizer = lambda x: x.split(' ')
-    import sys
-    import collections
+    tokenizer = (get_tokenizer()
+                 if tokenize
+                 else
+                 (lambda x: x.split(' ')))
     d = collections.defaultdict(int)
     for row in sys.stdin:
         for token in tokenizer(row):
             if lowercase:
                 token = token.lower()
             d[token] += 1
-    print d
     for k,v in sort_dictionary_by_values_in_descending_order(d):
         print k
+
+def process_columns(f, *args, **kwargs):
+    ''' process each row passed in through stdin.
+    It prints the processed row to stdout.
+    Params
+    ------
+    f     : The function to apply to each column
+    *args : If args is non empty then it specifies the columnd to be processed.
+    '''
+    get = lambda k, v: (kwargs[k] if k in kwargs else v)
+    ifs=get('ifs', None)
+    ofs=get('ofs', '\t')
+    ors=get('ors', '\n')
+    for row in sys.stdin:
+        for idx, col in enumerate(row.split(ifs)):
+            idx += 1
+            if len(args) == 0 or idx in args:
+                col = f(col)
+            sys.stdout.write(col)
+            sys.stdout.write(ofs)
+        sys.stdout.write(ors)
