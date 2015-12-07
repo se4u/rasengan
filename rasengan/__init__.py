@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Sun Dec  6 19:51:28 2015 (-0500)
+| Last-Updated: Sun Dec  6 20:38:47 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 86
+|     Update #: 96
 '''
 import collections
 import contextlib
@@ -417,6 +417,9 @@ def validate_np_array(
             pass
     return
 
+def sort_dictionary_by_values_in_descending_order(d):
+    return sorted(d.items(), key=lambda x: x[1], reverse=True)
+
 def pipeline_tokenizer():
     ''' This function can be called from the cmd line to
     tokenize files from command line.
@@ -431,20 +434,19 @@ def pipeline_dictionary(tokenize=1, lowercase=1):
     ''' This function is called from the commandline to extract a dictionary
     from a file after tokenizing it.
     '''
-
+    if tokenize:
+        from pattern.en import tokenize
+        tokenizer = lambda x: tokenize(x)[0].split(' ')
+    else:
+        tokenizer = lambda x: x.split(' ')
     import sys
-    from nltk.tokenize import TweetTokenizer
-    tokenizer = (TweetTokenizer().tokenize
-                 if tokenize
-                 else lambda x: x.split(' '))
-    lowercaser = (lambda x: x.lower()
-                  if lowercase
-                  else lambda x: x)
     import collections
     d = collections.defaultdict(int)
     for row in sys.stdin:
         for token in tokenizer(row):
-            token = lowercaser(token)
+            if lowercase:
+                token = token.lower()
             d[token] += 1
-    for k,v in sorted(d.items(), key=lambda x: x[1], reverse=True):
+    print d
+    for k,v in sort_dictionary_by_values_in_descending_order(d):
         print k
