@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Fri Dec 11 23:02:30 2015 (-0500)
+| Last-Updated: Fri Dec 11 23:07:16 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 112
+|     Update #: 113
 '''
 import collections
 import contextlib
@@ -14,7 +14,6 @@ import numpy
 import random
 import print_hook
 import sys
-
 from lev import lev
 
 
@@ -26,11 +25,13 @@ def print_indent_fn(text):
     else:
         return text
 
+
 def setup_print_indent():
     print_indent_fn.indent = 0
     setup_print_indent.printhook = print_hook.PrintHook().start(
         func=print_indent_fn, override='stdout')
     return setup_print_indent.printhook
+
 
 def increase_print_indent():
     try:
@@ -38,6 +39,7 @@ def increase_print_indent():
     except AttributeError:
         setup_print_indent()
         increase_print_indent()
+
 
 def decrease_print_indent():
     print_indent_fn.indent -= 1
@@ -63,6 +65,7 @@ def tictoc(msg):
     print
     print "Completed", msg, "in %0.1fs" % (time.time() - t)
 
+
 class announce(object):
 
     ''' Decorate a function with this to announce entrance.
@@ -86,6 +89,7 @@ class announce(object):
             return f(*args, **kwargs)
         return runtime_wrapper
 
+
 @contextlib.contextmanager
 def announce_ctm(task):
     increase_print_indent()
@@ -94,6 +98,7 @@ def announce_ctm(task):
     decrease_print_indent()
     print
     print "Finished", task
+
 
 class reseed(object):
 
@@ -134,6 +139,7 @@ def reseed_ctm(seed, reset=True):
         random.seed(seed)
         random.setstate(state)
 
+
 @contextlib.contextmanager
 def debug_support(capture_ctrl_c=True):
     ''' Drop into
@@ -145,6 +151,7 @@ def debug_support(capture_ctrl_c=True):
     import traceback
     import signal
     import code
+
     def top_frame(frame):
         if frame.f_back is None:
             return frame
@@ -217,12 +224,14 @@ def debug_support(capture_ctrl_c=True):
 
 
 class Namespace(collections.MutableMapping):
+
     """Simple object for storing attributes.
 
     Implements equality by attribute names and values, and provides a simple
     string representation.
     """
     __hash__ = None
+
     def __repr__(self):
         type_name = type(self).__name__
         arg_strings = []
@@ -242,7 +251,6 @@ class Namespace(collections.MutableMapping):
             self.__name = None
         for name in kwargs:
             setattr(self, name, kwargs[name])
-
 
     def __eq__(self, other):
         if not isinstance(other, Namespace):
@@ -290,6 +298,7 @@ class Namespace(collections.MutableMapping):
                 self[prefix + k] = ns[k]
         return self
 
+
 def flatten(lol):
     ''' Convert a nested list to a flat list
     Params
@@ -307,15 +316,18 @@ def flatten(lol):
             l.append(e)
     return l
 
+
 def batch_list(lst, n=1):
     l = len(lst)
     for ndx in range(0, l, n):
         yield lst[ndx:min(ndx + n, l)]
 
+
 class NameSpacer(
         collections.MutableMapping,
         collections.MutableSequence,
         collections.MutableSet):
+
     def __init__(self, obj):
         self.obj = obj
 
@@ -360,8 +372,10 @@ class NameSpacer(
     def discard(self, e):
         self.obj.discard(e)
 
+
 def namespacer(obj):
     return NameSpacer(obj)
+
 
 def sample_from_list(lst, samples, return_generator=False):
     ''' Sample `samples` many points from a lst that are spaced evenly apart.
@@ -396,6 +410,7 @@ def sample_from_list(lst, samples, return_generator=False):
         else:
             return (lst[i] for i in xrange(0, samples * step_size, step_size))
 
+
 def validate_np_array(
         value, name=None, _max=1e6, _min=-1e6, mean=1e6, silent_fail=False,
         describe=0):
@@ -404,14 +419,14 @@ def validate_np_array(
         for limit_type, v, l in [('max', value.max(), _max),
                                  ('abs-of-mean', abs(value.mean()), mean),
                                  ('mean-of-abs', numpy.absolute(value).mean(), mean)]:
-            assert v < l, msg_template%(str(name), limit_type, l, v)
+            assert v < l, msg_template % (str(name), limit_type, l, v)
             if describe:
-                print 'Parameter %s limit_type %s, limit=%f, value=%f'%(
+                print 'Parameter %s limit_type %s, limit=%f, value=%f' % (
                     str(name), limit_type, l, v)
         for limit_type, v, l in [('min', value.min(), _min)]:
-            assert v > l, msg_template%(str(name), limit_type, l, v)
+            assert v > l, msg_template % (str(name), limit_type, l, v)
             if describe:
-                print 'Parameter %s limit_type %s, limit=%f, value=%f'%(
+                print 'Parameter %s limit_type %s, limit=%f, value=%f' % (
                     str(name), limit_type, l, v)
     else:
         if not silent_fail:
@@ -420,12 +435,15 @@ def validate_np_array(
             pass
     return
 
+
 def sort_dictionary_by_values_in_descending_order(d):
     return sorted(d.items(), key=lambda x: x[1], reverse=True)
+
 
 def get_tokenizer():
     from pattern.en import tokenize
     return lambda x: tokenize(x)[0].split(' ')
+
 
 def pipeline_tokenizer():
     ''' This function can be called from the cmd line to
@@ -434,6 +452,7 @@ def pipeline_tokenizer():
     tknzr = get_tokenizer()
     for row in sys.stdin:
         print ' '.join(tknzr.tokenize(row))
+
 
 def pipeline_dictionary(tokenize=0, lowercase=0):
     ''' This function is called from the commandline to extract a dictionary
@@ -449,8 +468,9 @@ def pipeline_dictionary(tokenize=0, lowercase=0):
             if lowercase:
                 token = token.lower()
             d[token] += 1
-    for k,v in sort_dictionary_by_values_in_descending_order(d):
+    for k, v in sort_dictionary_by_values_in_descending_order(d):
         print k
+
 
 def process_columns(f, *args, **kwargs):
     ''' process each row passed in through stdin.
@@ -461,9 +481,9 @@ def process_columns(f, *args, **kwargs):
     *args : If args is non empty then it specifies the columnd to be processed.
     '''
     get = lambda k, v: (kwargs[k] if k in kwargs else v)
-    ifs=get('ifs', None)
-    ofs=get('ofs', '\t')
-    ors=get('ors', '\n')
+    ifs = get('ifs', None)
+    ofs = get('ofs', '\t')
+    ors = get('ors', '\n')
     for row in sys.stdin:
         for idx, col in enumerate(row.split(ifs)):
             idx += 1
@@ -489,3 +509,16 @@ def argmax(iterable):
 
 def argmin(iterable):
     return min(enumerate(iterable), key=lambda x: x[1])[0]
+
+def put(a, b, idx):
+    ' Put a:list into b:list at idx. '
+    assert isinstance(a, list)
+    assert isinstance(b, list)
+    assert isinstance(idx, int)
+    assert idx >= 0 and idx <= len(b)
+    if idx == 0:
+        return b + a
+    elif idx == len(b):
+        return a + b
+    else:
+        return a[:idx] + b + a[idx:]
