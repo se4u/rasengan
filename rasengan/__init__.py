@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Wed Dec  9 16:04:52 2015 (-0500)
+| Last-Updated: Wed Dec  9 16:24:22 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 111
+|     Update #: 113
 '''
 import collections
 import contextlib
@@ -493,15 +493,23 @@ def process_columns(f, *args, **kwargs):
         sys.stdout.write(ors)
 
 
-def put(a, b, idx):
+def put(a, b, idx, replace=False):
     ' Put a:list into b:list at idx. '
     assert isinstance(a, list)
     assert isinstance(b, list)
     assert isinstance(idx, int)
     assert idx >= 0 and idx <= len(b)
     if idx == 0:
-        return b + a
+        if replace:
+            return b + a[1:]
+        else:
+            return b + a
     elif idx == len(b):
+        if replace:
+            raise NotImplementedError("Cant replace at b[len(b)]")
         return a + b
     else:
-        return a[:idx] + b + a[idx:]
+        if replace:
+            return b[:idx] + a + b[idx + 1:]
+        else:
+            return b[:idx] + a + b[idx:]
