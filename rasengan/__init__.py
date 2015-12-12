@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Sun Dec  6 22:15:31 2015 (-0500)
+| Last-Updated: Fri Dec 11 23:02:30 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 109
+|     Update #: 112
 '''
 import collections
 import contextlib
@@ -14,6 +14,9 @@ import numpy
 import random
 import print_hook
 import sys
+
+from lev import lev
+
 
 def print_indent_fn(text):
     if len(text) > 0:
@@ -469,3 +472,20 @@ def process_columns(f, *args, **kwargs):
             sys.stdout.write(col)
             sys.stdout.write(ofs)
         sys.stdout.write(ors)
+    return
+
+def _warning(message, category = UserWarning, filename = '', lineno = -1):
+    print >> sys.stderr, message
+    return
+
+import warnings
+warnings.showwarning = _warning
+
+def warn(msg):
+    warnings.warn(msg)
+
+def argmax(iterable):
+    return max(enumerate(iterable), key=lambda x: x[1])[0]
+
+def argmin(iterable):
+    return min(enumerate(iterable), key=lambda x: x[1])[0]
