@@ -3,7 +3,7 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Wed Dec  9 16:24:22 2015 (-0500)
+| Last-Updated: Fri Dec 11 23:07:16 2015 (-0500)
 |           By: Pushpendre Rastogi
 |     Update #: 113
 '''
@@ -14,6 +14,7 @@ import numpy
 import random
 import print_hook
 import sys
+from lev import lev
 
 
 def print_indent_fn(text):
@@ -491,7 +492,23 @@ def process_columns(f, *args, **kwargs):
             sys.stdout.write(col)
             sys.stdout.write(ofs)
         sys.stdout.write(ors)
+    return
 
+def _warning(message, category = UserWarning, filename = '', lineno = -1):
+    print >> sys.stderr, message
+    return
+
+import warnings
+warnings.showwarning = _warning
+
+def warn(msg):
+    warnings.warn(msg)
+
+def argmax(iterable):
+    return max(enumerate(iterable), key=lambda x: x[1])[0]
+
+def argmin(iterable):
+    return min(enumerate(iterable), key=lambda x: x[1])[0]
 
 def put(a, b, idx, replace=False):
     ' Put a:list into b:list at idx. '
