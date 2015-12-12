@@ -3,13 +3,14 @@
 | Description : Find the edit distance between two strings.
 | Author      : Pushpendre Rastogi
 | Created     : Fri Dec 11 22:10:53 2015 (-0500)
-| Last-Updated: Fri Dec 11 23:00:23 2015 (-0500)
+| Last-Updated: Sat Dec 12 01:23:19 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 22
+|     Update #: 35
 '''
 import collections
 
-Distance = collections.namedtuple('Distance', ['insert', 'delete', 'replace'])
+EditDistance = collections.namedtuple(
+    'EditDistance', ['substitute', 'insert', 'delete'])
 
 def memoize(f):
     def g(*args):
@@ -39,10 +40,10 @@ def _levenshtein(a, b):
     sub = list(_levenshtein(a[1:], b[1:]))
     sub[0] += (a[0] != b[0])
     sub_sum = sum(sub)
-    ins = list(_levenshtein(a[1:], b))
+    ins = list(_levenshtein(a, b[1:]))
     ins[1] += 1
     ins_sum = sum(ins)
-    del_ = list(_levenshtein(a, b[1:]))
+    del_ = list(_levenshtein(a[1:], b))
     del_[2] += 1
     del_sum = sum(del_)
     if sub_sum < ins_sum:
@@ -58,11 +59,11 @@ def _levenshtein(a, b):
 
 def lev(a, b):
     memoize.d = {}
-    v = Distance(*_levenshtein(a, b))
+    v = EditDistance(*_levenshtein(a, b))
     del memoize.d
     return v
 
 if __name__ == '__main__':
-    print lev('arg', 'arb')
-    print lev('arg', 'brb')
-    print lev('arg', 'brbc')
+    assert lev('arg', 'arb') == EditDistance(1, 0, 0)
+    assert lev('arg', 'brbc') == EditDistance(2, 1, 0)
+    assert lev('argzzz', 'brbc') == EditDistance(3, 0, 2)
