@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Fri Dec 11 23:07:16 2015 (-0500)
+| Last-Updated: Mon Dec 14 04:01:33 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 113
+|     Update #: 115
 '''
 import collections
 import contextlib
@@ -451,19 +451,20 @@ def pipeline_tokenizer():
     '''
     tknzr = get_tokenizer()
     for row in sys.stdin:
-        print ' '.join(tknzr.tokenize(row))
+        print ' '.join(tknzr.tokenize(row.strip()))
 
 
-def pipeline_dictionary(tokenize=0, lowercase=0):
+def pipeline_dictionary(pattern_tokenize=0, lowercase=0):
     ''' This function is called from the commandline to extract a dictionary
     from a file after tokenizing it.
     '''
     tokenizer = (get_tokenizer()
-                 if tokenize
+                 if pattern_tokenize
                  else
                  (lambda x: x.split(' ')))
     d = collections.defaultdict(int)
     for row in sys.stdin:
+        row = row.strip()
         for token in tokenizer(row):
             if lowercase:
                 token = token.lower()
