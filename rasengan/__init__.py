@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Mon Dec 14 04:01:33 2015 (-0500)
+| Last-Updated: Mon Dec 14 05:21:43 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 115
+|     Update #: 116
 '''
 import collections
 import contextlib
@@ -531,3 +531,37 @@ def put(a, b, idx, replace=False):
             return b[:idx] + a + b[idx + 1:]
         else:
             return b[:idx] + a + b[idx:]
+
+def flatdict_iterator(fh):
+    '''
+    A flatdict is a file that contains data like the following:
+
+    index: 0
+    text: sentence1
+    partof: train
+
+    index: 1
+    text: sentence2
+    partof: test
+
+    This is a flat representation of a dictionary that is human readable.
+    This function iterates over the entries in such a flatdict file.
+    Params
+    ------
+    fh : The file handle.
+
+    Returns
+    -------
+    An iterator to iterate over the entries in a flat file.
+    '''
+    d = {}
+    for row in fh:
+        row = row.strip()
+        if row == '':
+            yield d
+            d = {}
+        else:
+            row = row.split(': ')
+            key = row[0]
+            val = ': '.join(row[1:])
+            d[key] = val
