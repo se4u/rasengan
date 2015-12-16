@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Wed Dec 16 00:24:38 2015 (-0500)
+| Last-Updated: Wed Dec 16 03:59:55 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 141
+|     Update #: 144
 '''
 import collections
 import contextlib
@@ -15,7 +15,7 @@ import random
 import print_hook
 import sys
 from lev import lev
-
+import os
 
 def print_indent_fn(text):
     if len(text) > 0:
@@ -643,3 +643,21 @@ def randomized_check_grad(func, grad, x0, verbose=0, quota=20, tol=1e-8,
     return ((err < tol)
             if return_decision
             else err)
+
+
+def ensure_dir(f, verbose=False):
+    ''' Copied from stackoverflow.com/questions/273192/
+    in-python-check-if-a-directory-exists-and-create-it-if-necessary
+    Params
+    ------
+    f       : File name whose parent directories are guaranteed to exist
+              at the end of this operation. (Upto OS Errors and Exceptions)
+    verbose : (default False)
+    Returns
+    -------
+    '''
+    d = os.path.dirname(f)
+    if not os.path.exists(d):
+        os.makedirs(d)
+        if verbose:
+            print 'Created directory', d
