@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Wed Dec 16 03:59:55 2015 (-0500)
+| Last-Updated: Wed Dec 16 04:05:33 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 144
+|     Update #: 145
 '''
 import collections
 import contextlib
@@ -645,18 +645,19 @@ def randomized_check_grad(func, grad, x0, verbose=0, quota=20, tol=1e-8,
             else err)
 
 
-def ensure_dir(f, verbose=False):
+def ensure_dir(f, verbose=False, treat_as_dir=False):
     ''' Copied from stackoverflow.com/questions/273192/
     in-python-check-if-a-directory-exists-and-create-it-if-necessary
     Params
     ------
     f       : File name whose parent directories are guaranteed to exist
               at the end of this operation. (Upto OS Errors and Exceptions)
+    treat_as_dir: Is the input file really a directory.
     verbose : (default False)
-    Returns
-    -------
     '''
-    d = os.path.dirname(f)
+    d = (f
+         if treat_as_dir
+         else os.path.dirname(f))
     if not os.path.exists(d):
         os.makedirs(d)
         if verbose:
