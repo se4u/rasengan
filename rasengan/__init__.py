@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Mon Dec 14 05:21:43 2015 (-0500)
+| Last-Updated: Wed Dec 16 00:24:38 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 116
+|     Update #: 141
 '''
 import collections
 import contextlib
@@ -565,3 +565,81 @@ def flatdict_iterator(fh):
             key = row[0]
             val = ': '.join(row[1:])
             d[key] = val
+
+@contextlib.contextmanager
+def numpy_print_ctm(**kwargs):
+    ''' See
+    docs.scipy.org/doc/numpy-1.10.1/reference/generated/numpy.set_printoptions.html
+
+    The important keys are:
+    precision: Number of digits of precision for floating point output. (default 8)
+    threshold: numel in array which triggers sumarization.
+    linewidth: number of characters per line for inserting line breaks.
+    suppress: suppress printing small floats using scientific notation.
+    '''
+    if len(kwargs) > 0:
+        orig_opt = dict(numpy.get_printoptions())
+        numpy.set_printoptions(**kwargs)
+    yield
+    if len(kwargs) > 0:
+        numpy.set_printoptions(**orig_opt)
+
+def randomized_check_grad(func, grad, x0, verbose=0, quota=20, tol=1e-8,
+                          return_decision=True, eps=1e-6):
+    ''' Numerically checks the directional derivative of a high dimensional function
+    along points located in randomly chosen directions away from x0.
+
+    This is essentially a faster, randomized version of `scipy.optimize.check_grad`
+    which incidentally is useless for high dimensional functions because it changes
+    parameters one at a time, so it needs to compute the gradient `P` times where
+    `P` is the number of parameters.
+
+    Istead we just check that the numerical directional derivative along random
+    directions (y-x0) equals the theoretical value grad'(y - x0) for random y chosen
+    from a coordinatewise uniform [x0-eps, x0+eps] distribution.
+
+    Params
+    ------
+    func    : The function.
+    grad    : The theoretical gradient.
+    x0      : The point around which `grad` needs to be checked.
+    quota   : The number of random directions to evaluate. (default 10)
+              The error along each random direction must be less than tol.
+              TODO: Relatively? Absolutely?
+    tol     : The tolerance for error (default 1e-8)
+    eps     : The deviation in parameter values of the random points around x0.
+    verbose : (default 0)
+
+    Returns
+    -------
+    Either a boolean or a floating point indicating the maximum error along a
+    random direction.
+    (err < tol) if return_decision else err
+
+    Usage Example:
+    --------------
+    >>> print randomized_check_grad(
+            lambda x: np.dot(x.T, x), lambda x: 2 * x, x0 = np.ones((10,)))
+    True
+    >>> print randomized_check_grad(
+            lambda x: np.dot(x.T, x), lambda x: x, x0 = np.ones((10,)))
+    False
+    '''
+    p = x0.shape[0]
+    fx0 = func(x0)
+    dY = ((numpy.random.rand(p, quota) - 0.5) * eps)
+    Y = x0[:,numpy.newaxis] + dY
+    numerical_dfY = numpy.array(
+        [func(Y[:, idx]) - fx0 for idx in range(quota)])
+    gradient_at_x0 = grad(x0)
+    theoretical_dfY = numpy.array(
+        [numpy.dot(gradient_at_x0, dY[:, idx])
+         for idx in range(quota)])
+    errors = numpy.abs(numerical_dfY - theoretical_dfY)
+    if verbose:
+        with numpy_print_ctm(precision=2):
+            print 'individual_errors\n', errors
+    err = max(errors)
+    return ((err < tol)
+            if return_decision
+            else err)
