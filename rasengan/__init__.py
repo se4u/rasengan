@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Wed Dec 16 04:05:33 2015 (-0500)
+| Last-Updated: Thu Dec 17 16:07:22 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 145
+|     Update #: 149
 '''
 import collections
 import contextlib
@@ -16,6 +16,10 @@ import print_hook
 import sys
 from lev import lev
 import os
+try:
+    import ipdb as pdb
+except ImportError:
+    import pdb
 
 def print_indent_fn(text):
     if len(text) > 0:
@@ -140,36 +144,48 @@ def reseed_ctm(seed, reset=True):
         random.setstate(state)
 
 
+def _top_frame(frame):
+    if frame.f_back is None:
+        return frame
+    else:
+        return _top_frame(frame.f_back)
+
+def _call_pdb(_sig, _frame):
+    import code
+    d = dict(_frame=_frame, top_frame=_top_frame)
+    return code.InteractiveConsole(d).interact(
+        "Entering python shell. Press Ctrl-d to resume execution.")
+
+def disable_debug_support():
+    debug_support._debug = False
+
+def enable_debug_support():
+    debug_support._debug = True
+
 @contextlib.contextmanager
 def debug_support(capture_ctrl_c=True):
     ''' Drop into
     '''
-    try:
-        import ipdb as pdb
-    except ImportError:
-        import pdb
-    import traceback
-    import signal
-    import code
-
-    def top_frame(frame):
-        if frame.f_back is None:
-            return frame
-        else:
-            return top_frame(frame.f_back)
-
-    call_pdb = (lambda _sig, _frame:
-                code.InteractiveConsole(dict(_frame=_frame, top_frame=top_frame)).interact(
-                    "Entering python shell. Press Ctrl-d to resume execution."))
-    signal.signal(signal.SIGUSR1, call_pdb)
-    if capture_ctrl_c:
-        signal.signal(signal.SIGINT, call_pdb)
-        pass
+    if not hasattr(debug_support, '_debug'):
+        debug_support._debug = True
+    if debug_support._debug:
+        import signal
+        signal.signal(signal.SIGUSR1, _call_pdb)
+        if capture_ctrl_c:
+            signal.signal(signal.SIGINT, _call_pdb)
+            pass
     try:
         yield
     except:
-        traceback.print_exc()
-        pdb.post_mortem(sys.exc_info()[2])
+        sys_exc_info = sys.exc_info()
+        if debug_support._debug:
+            import traceback
+            traceback.print_exc()
+            pdb.post_mortem(sys_exc_info[2])
+        else:
+            raise sys_exc_info[0], sys_exc_info[1], sys_exc_info[2]
+
+
 
 # http://www.dalkescientific.com/writings/diary/archive/2005/04/20/tracing_python_code.html
 # https://pymotw.com/2/trace/index.html#module-trace
