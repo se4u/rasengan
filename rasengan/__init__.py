@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Thu Dec 17 16:07:22 2015 (-0500)
+| Last-Updated: Thu Dec 17 18:36:19 2015 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 149
+|     Update #: 156
 '''
 import collections
 import contextlib
@@ -375,9 +375,9 @@ class NameSpacer(
         return self.obj.__len__()
 
     def __add__(self, right_obj):
-        return (self.obj.__add__(right_obj.obj)
-                if isinstance(right_obj, NameSpacer)
-                else self.obj.__add__(right_obj))
+        return NameSpacer(self.obj.__add__(right_obj.obj)
+                          if isinstance(right_obj, NameSpacer)
+                          else self.obj.__add__(right_obj))
 
     def insert(self, i, e):
         return self.obj.insert(i, e)
@@ -678,3 +678,7 @@ def ensure_dir(f, verbose=False, treat_as_dir=False):
         os.makedirs(d)
         if verbose:
             print 'Created directory', d
+
+def majority(lst):
+    return sort_dictionary_by_values_in_descending_order(
+        collections.Counter(lst))[0][0]
