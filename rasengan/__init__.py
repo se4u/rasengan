@@ -29,11 +29,22 @@ def print_indent_fn(text):
     else:
         return text
 
+def print_indent_and_redirect_to_file(text):
+    text = print_indent_fn(text)
+    print_indent_and_redirect_to_file.ofh.write(text)
+    return text
 
-def setup_print_indent():
+def setup_print_indent(ofh=None):
     print_indent_fn.indent = 0
+    print_indent_and_redirect_to_file.ofh = ofh
+    if print_hook.PrintHook().already_started:
+        print_hook.PrintHook().stop()
+
     setup_print_indent.printhook = print_hook.PrintHook().start(
-        func=print_indent_fn, override='stdout')
+        func=(print_indent_fn
+              if ofh is None
+              else print_indent_and_redirect_to_file),
+        override='stdout')
     return setup_print_indent.printhook
 
 
