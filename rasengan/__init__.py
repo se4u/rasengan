@@ -81,7 +81,36 @@ def tictoc(msg):
     print "Completed", msg, "in %0.1fs" % (time.time() - t)
 
 
-class announce(object):
+
+class DecoratorBase(object):
+    ''' The `functools.wraps` function takes a function used in a decorator
+    and adds the functionality of copying over the function name, docstring,
+    arguments list, etc.
+
+    But for class-style decorators, @wrap doesn't do the job. This base class
+    solves the problem by proxying attribute calls over to the function that
+    is being decorated.
+
+    Copied from: stackoverflow.com/questions/308999/what-does-functools-wraps-do
+    '''
+    func = None
+
+    def __init__(self, func):
+        self.__func = func
+
+    def __getattribute__(self, name):
+        if name == "func":
+            return super(DecBase, self).__getattribute__(name)
+
+        return self.func.__getattribute__(name)
+
+    def __setattr__(self, name, value):
+        if name == "func":
+            return super(DecBase, self).__setattr__(name, value)
+
+        return self.func.__setattr__(name, value)
+
+class announce(DecoratorBase):
 
     ''' Decorate a function with this to announce entrance.
     Use this decorator as:
@@ -115,7 +144,7 @@ def announce_ctm(task):
     print "Finished", task
 
 
-class reseed(object):
+class reseed(DecoratorBase):
 
     ''' Reseed both `random` and `numpy.random` with a particular seed before
     starting a function. This is useful to quickly pin down a case where a
