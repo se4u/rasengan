@@ -325,6 +325,25 @@ class Namespace(collections.MutableMapping):
                 self[prefix + k] = ns[k]
         return self
 
+    def copy_invariant_is_suffix(
+            self, invariant, prefix_source, prefix_dest, glue='_'):
+        ''' Copy a property from [prefix_source][glue][invariant] to
+        [prefix_dest][glue][invariant]
+        '''
+        setattr(self,
+                prefix_dest + glue + invariant,
+                getattr(self, prefix_source + glue + invariant))
+        return
+
+    def copy_invariant_is_prefix(
+            self, invariant, src_suffix, dest_suffix, glue='_'):
+        '''Copy property from
+        [invariant][glue][src_suffix] -> [invariant][glue][dest_suffix]
+        '''
+        setattr(self,
+                invariant + glue + dest_suffix,
+                getattr(self, invariant + glue + src_suffix))
+        return
 
 def flatten(lol):
     ''' Convert a nested list to a flat list
