@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Fri Dec 11 23:07:16 2015 (-0500)
+| Last-Updated: Mon Jan  4 06:25:25 2016 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 113
+|     Update #: 124
 '''
 import collections
 import contextlib
@@ -15,6 +15,7 @@ import random
 import print_hook
 import sys
 from lev import lev
+import itertools
 
 
 def print_indent_fn(text):
@@ -494,21 +495,26 @@ def process_columns(f, *args, **kwargs):
         sys.stdout.write(ors)
     return
 
-def _warning(message, category = UserWarning, filename = '', lineno = -1):
+
+def _warning(message, category=UserWarning, filename='', lineno=-1):
     print >> sys.stderr, message
     return
 
 import warnings
 warnings.showwarning = _warning
 
+
 def warn(msg):
     warnings.warn(msg)
+
 
 def argmax(iterable):
     return max(enumerate(iterable), key=lambda x: x[1])[0]
 
+
 def argmin(iterable):
     return min(enumerate(iterable), key=lambda x: x[1])[0]
+
 
 def put(a, b, idx, replace=False):
     ' Put a:list into b:list at idx. '
@@ -530,3 +536,50 @@ def put(a, b, idx, replace=False):
             return b[:idx] + a + b[idx + 1:]
         else:
             return b[:idx] + a + b[idx:]
+
+
+def nonparametric_signed_test_for_significance(arr1, arr2):
+    ''' Given two numpy arrays of equal length containing samples of
+    statstics that we want to reliably tell apart, we perform the signed
+    permutation test, which is a simplified variant of the paired permutation,
+    test.
+
+    The basic idea is that we can tell whether the mean of the distribution
+    that gave rise to the data in arr1 and arr2 are truly different irrespective
+    of the distributions that gave rise to arr1, and arr2.
+
+    We chose the null hypothesis to be that the two distributions have the same
+    mean (and nothing else, i.e. we dont assume a parametric form of the
+    distribution or anything else) and then we find whether under random swaps
+    of elements of arr1 and arr2 the absolute value of the average difference
+    remains lower than the absolute value of average difference when no swapping
+    is done.
+
+    Note that one of the permutations is the identity permutation which means
+    that the count has to be at least 1.
+
+    Note: One desirable property of this procedure is that it is scale
+    independent since all we are doing is checking for inequalities even if both
+    v1, v2 are scaled by some constant k. The results would be the same.
+
+    See axon.cs.byu.edu/Dan/478/assignments/permutation_test.php for details.
+    Params
+    ------
+    arr1, arr2 : Two numpy 1d arrays.
+    '''
+    assert arr1.ndim == 1
+    assert arr2.ndim == 1
+
+    def absolute_value_of_mean(v):
+        return float(abs((v).mean()))
+
+    v = arr1 - arr2
+    base_aad = absolute_value_of_mean(v)
+    n = 0
+    t = 0
+    for signs in itertools.product([-1, 1], repeat=v.shape[0]):
+        sign_aad = absolute_value_of_mean(numpy.array(signs) * v)
+        # Note: That we do [>=] instead of [>] is theoretically important.
+        n += (sign_aad >= base_aad)
+        t += 1
+    return float(n) / t
