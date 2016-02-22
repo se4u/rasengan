@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Mon Jan  4 06:25:25 2016 (-0500)
+| Last-Updated: Mon Feb 22 00:45:48 2016 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 124
+|     Update #: 157
 '''
 import collections
 import contextlib
@@ -16,6 +16,11 @@ import print_hook
 import sys
 from lev import lev
 import itertools
+import os
+try:
+    import ipdb as pdb
+except ImportError:
+    import pdb
 
 
 def print_indent_fn(text):
@@ -27,10 +32,23 @@ def print_indent_fn(text):
         return text
 
 
-def setup_print_indent():
+def print_indent_and_redirect_to_file(text):
+    text = print_indent_fn(text)
+    print_indent_and_redirect_to_file.ofh.write(text)
+    return text
+
+
+def setup_print_indent(ofh=None):
     print_indent_fn.indent = 0
+    print_indent_and_redirect_to_file.ofh = ofh
+    if print_hook.PrintHook().already_started:
+        print_hook.PrintHook().stop()
+
     setup_print_indent.printhook = print_hook.PrintHook().start(
-        func=print_indent_fn, override='stdout')
+        func=(print_indent_fn
+              if ofh is None
+              else print_indent_and_redirect_to_file),
+        override='stdout')
     return setup_print_indent.printhook
 
 
@@ -67,7 +85,37 @@ def tictoc(msg):
     print "Completed", msg, "in %0.1fs" % (time.time() - t)
 
 
-class announce(object):
+class DecoratorBase(object):
+
+    ''' The `functools.wraps` function takes a function used in a decorator
+    and adds the functionality of copying over the function name, docstring,
+    arguments list, etc.
+
+    But for class-style decorators, @wrap doesn't do the job. This base class
+    solves the problem by proxying attribute calls over to the function that
+    is being decorated.
+
+    Copied from: stackoverflow.com/questions/308999/what-does-functools-wraps-do
+    '''
+    func = None
+
+    def __init__(self, func):
+        self.__func = func
+
+    def __getattribute__(self, name):
+        if name == "func":
+            return super(DecBase, self).__getattribute__(name)
+
+        return self.func.__getattribute__(name)
+
+    def __setattr__(self, name, value):
+        if name == "func":
+            return super(DecBase, self).__setattr__(name, value)
+
+        return self.func.__setattr__(name, value)
+
+
+class announce(DecoratorBase):
 
     ''' Decorate a function with this to announce entrance.
     Use this decorator as:
@@ -101,7 +149,7 @@ def announce_ctm(task):
     print "Finished", task
 
 
-class reseed(object):
+class reseed(DecoratorBase):
 
     ''' Reseed both `random` and `numpy.random` with a particular seed before
     starting a function. This is useful to quickly pin down a case where a
@@ -141,36 +189,51 @@ def reseed_ctm(seed, reset=True):
         random.setstate(state)
 
 
+def _top_frame(frame):
+    if frame.f_back is None:
+        return frame
+    else:
+        return _top_frame(frame.f_back)
+
+
+def _call_pdb(_sig, _frame):
+    import code
+    d = dict(_frame=_frame, top_frame=_top_frame)
+    return code.InteractiveConsole(d).interact(
+        "Entering python shell. Press Ctrl-d to resume execution.")
+
+
+def disable_debug_support():
+    debug_support._debug = False
+
+
+def enable_debug_support():
+    debug_support._debug = True
+
+
 @contextlib.contextmanager
 def debug_support(capture_ctrl_c=True):
     ''' Drop into
     '''
-    try:
-        import ipdb as pdb
-    except ImportError:
-        import pdb
-    import traceback
-    import signal
-    import code
-
-    def top_frame(frame):
-        if frame.f_back is None:
-            return frame
-        else:
-            return top_frame(frame.f_back)
-
-    call_pdb = (lambda _sig, _frame:
-                code.InteractiveConsole(dict(_frame=_frame, top_frame=top_frame)).interact(
-                    "Entering python shell. Press Ctrl-d to resume execution."))
-    signal.signal(signal.SIGUSR1, call_pdb)
-    if capture_ctrl_c:
-        signal.signal(signal.SIGINT, call_pdb)
-        pass
+    if not hasattr(debug_support, '_debug'):
+        debug_support._debug = True
+    if debug_support._debug:
+        import signal
+        signal.signal(signal.SIGUSR1, _call_pdb)
+        if capture_ctrl_c:
+            signal.signal(signal.SIGINT, _call_pdb)
+            pass
     try:
         yield
     except:
-        traceback.print_exc()
-        pdb.post_mortem(sys.exc_info()[2])
+        sys_exc_info = sys.exc_info()
+        if debug_support._debug:
+            import traceback
+            traceback.print_exc()
+            pdb.post_mortem(sys_exc_info[2])
+        else:
+            raise sys_exc_info[0], sys_exc_info[1], sys_exc_info[2]
+
 
 # http://www.dalkescientific.com/writings/diary/archive/2005/04/20/tracing_python_code.html
 # https://pymotw.com/2/trace/index.html#module-trace
@@ -299,6 +362,26 @@ class Namespace(collections.MutableMapping):
                 self[prefix + k] = ns[k]
         return self
 
+    def copy_invariant_is_suffix(
+            self, invariant, prefix_source, prefix_dest, glue='_'):
+        ''' Copy a property from [prefix_source][glue][invariant] to
+        [prefix_dest][glue][invariant]
+        '''
+        setattr(self,
+                prefix_dest + glue + invariant,
+                getattr(self, prefix_source + glue + invariant))
+        return
+
+    def copy_invariant_is_prefix(
+            self, invariant, src_suffix, dest_suffix, glue='_'):
+        '''Copy property from
+        [invariant][glue][src_suffix] -> [invariant][glue][dest_suffix]
+        '''
+        setattr(self,
+                invariant + glue + dest_suffix,
+                getattr(self, invariant + glue + src_suffix))
+        return
+
 
 def flatten(lol):
     ''' Convert a nested list to a flat list
@@ -360,9 +443,9 @@ class NameSpacer(
         return self.obj.__len__()
 
     def __add__(self, right_obj):
-        return (self.obj.__add__(right_obj.obj)
-                if isinstance(right_obj, NameSpacer)
-                else self.obj.__add__(right_obj))
+        return NameSpacer(self.obj.__add__(right_obj.obj)
+                          if isinstance(right_obj, NameSpacer)
+                          else self.obj.__add__(right_obj))
 
     def insert(self, i, e):
         return self.obj.insert(i, e)
@@ -452,19 +535,20 @@ def pipeline_tokenizer():
     '''
     tknzr = get_tokenizer()
     for row in sys.stdin:
-        print ' '.join(tknzr.tokenize(row))
+        print ' '.join(tknzr.tokenize(row.strip()))
 
 
-def pipeline_dictionary(tokenize=0, lowercase=0):
+def pipeline_dictionary(pattern_tokenize=0, lowercase=0):
     ''' This function is called from the commandline to extract a dictionary
     from a file after tokenizing it.
     '''
     tokenizer = (get_tokenizer()
-                 if tokenize
+                 if pattern_tokenize
                  else
                  (lambda x: x.split(' ')))
     d = collections.defaultdict(int)
     for row in sys.stdin:
+        row = row.strip()
         for token in tokenizer(row):
             if lowercase:
                 token = token.lower()
@@ -583,3 +667,142 @@ def nonparametric_signed_test_for_significance(arr1, arr2):
         n += (sign_aad >= base_aad)
         t += 1
     return float(n) / t
+
+
+def flatdict_iterator(fh):
+    '''
+    A flatdict is a file that contains data like the following:
+
+    index: 0
+    text: sentence1
+    partof: train
+
+    index: 1
+    text: sentence2
+    partof: test
+
+    This is a flat representation of a dictionary that is human readable.
+    This function iterates over the entries in such a flatdict file.
+    Params
+    ------
+    fh : The file handle.
+
+    Returns
+    -------
+    An iterator to iterate over the entries in a flat file.
+    '''
+    d = {}
+    for row in fh:
+        row = row.strip()
+        if row == '':
+            yield d
+            d = {}
+        else:
+            row = row.split(': ')
+            key = row[0]
+            val = ': '.join(row[1:])
+            d[key] = val
+
+
+@contextlib.contextmanager
+def numpy_print_ctm(**kwargs):
+    ''' See
+    docs.scipy.org/doc/numpy-1.10.1/reference/generated/numpy.set_printoptions.html
+
+    The important keys are:
+    precision: Number of digits of precision for floating point output. (default 8)
+    threshold: numel in array which triggers sumarization.
+    linewidth: number of characters per line for inserting line breaks.
+    suppress: suppress printing small floats using scientific notation.
+    '''
+    if len(kwargs) > 0:
+        orig_opt = dict(numpy.get_printoptions())
+        numpy.set_printoptions(**kwargs)
+    yield
+    if len(kwargs) > 0:
+        numpy.set_printoptions(**orig_opt)
+
+
+def randomized_check_grad(func, grad, x0, verbose=0, quota=20, tol=1e-8,
+                          return_decision=True, eps=1e-6):
+    ''' Numerically checks the directional derivative of a high dimensional function
+    along points located in randomly chosen directions away from x0.
+
+    This is essentially a faster, randomized version of `scipy.optimize.check_grad`
+    which incidentally is useless for high dimensional functions because it changes
+    parameters one at a time, so it needs to compute the gradient `P` times where
+    `P` is the number of parameters.
+
+    Istead we just check that the numerical directional derivative along random
+    directions (y-x0) equals the theoretical value grad'(y - x0) for random y chosen
+    from a coordinatewise uniform [x0-eps, x0+eps] distribution.
+
+    Params
+    ------
+    func    : The function.
+    grad    : The theoretical gradient.
+    x0      : The point around which `grad` needs to be checked.
+    quota   : The number of random directions to evaluate. (default 10)
+              The error along each random direction must be less than tol.
+              TODO: Relatively? Absolutely?
+    tol     : The tolerance for error (default 1e-8)
+    eps     : The deviation in parameter values of the random points around x0.
+    verbose : (default 0)
+
+    Returns
+    -------
+    Either a boolean or a floating point indicating the maximum error along a
+    random direction.
+    (err < tol) if return_decision else err
+
+    Usage Example:
+    --------------
+    >>> print randomized_check_grad(
+            lambda x: np.dot(x.T, x), lambda x: 2 * x, x0 = np.ones((10,)))
+    True
+    >>> print randomized_check_grad(
+            lambda x: np.dot(x.T, x), lambda x: x, x0 = np.ones((10,)))
+    False
+    '''
+    p = x0.shape[0]
+    fx0 = func(x0)
+    dY = ((numpy.random.rand(p, quota) - 0.5) * eps)
+    Y = x0[:, numpy.newaxis] + dY
+    numerical_dfY = numpy.array(
+        [func(Y[:, idx]) - fx0 for idx in range(quota)])
+    gradient_at_x0 = grad(x0)
+    theoretical_dfY = numpy.array(
+        [numpy.dot(gradient_at_x0, dY[:, idx])
+         for idx in range(quota)])
+    errors = numpy.abs(numerical_dfY - theoretical_dfY)
+    if verbose:
+        with numpy_print_ctm(precision=2):
+            print 'individual_errors\n', errors
+    err = max(errors)
+    return ((err < tol)
+            if return_decision
+            else err)
+
+
+def ensure_dir(f, verbose=False, treat_as_dir=False):
+    ''' Copied from stackoverflow.com/questions/273192/
+    in-python-check-if-a-directory-exists-and-create-it-if-necessary
+    Params
+    ------
+    f       : File name whose parent directories are guaranteed to exist
+              at the end of this operation. (Upto OS Errors and Exceptions)
+    treat_as_dir: Is the input file really a directory.
+    verbose : (default False)
+    '''
+    d = (f
+         if treat_as_dir
+         else os.path.dirname(f))
+    if not os.path.exists(d):
+        os.makedirs(d)
+        if verbose:
+            print 'Created directory', d
+
+
+def majority(lst):
+    return sort_dictionary_by_values_in_descending_order(
+        collections.Counter(lst))[0][0]
