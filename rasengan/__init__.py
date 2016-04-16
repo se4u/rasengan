@@ -826,3 +826,8 @@ def ensure_dir(f, verbose=False, treat_as_dir=False):
 def majority(lst):
     return sort_dictionary_by_values_in_descending_order(
         collections.Counter(lst))[0][0]
+
+
+def crossval(n, k, shuffle=True):
+    from sklearn.cross_validation import KFold
+    return KFold(n=n, n_folds=k, shuffle=shuffle)
