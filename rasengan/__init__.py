@@ -427,11 +427,16 @@ class NameSpacer(
     def __contains__(self, key):
         return key in self.obj
 
+    # Items are for ['']
     def __getitem__(self, key):
         return self.obj.__getitem__(key)
 
     def __setitem__(self, key, value):
         self.obj.__setitem__(key, value)
+
+    # Attrs are for .
+    def __getattr__(self, key):
+        return getattr(self, 'obj').__getitem__(key)
 
     def __delitem__(self, key):
         self.obj.__delitem__(key)
