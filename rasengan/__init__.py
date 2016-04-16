@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Fri Apr 15 20:02:52 2016 (-0400)
+| Last-Updated: Fri Apr 15 23:39:00 2016 (-0400)
 |           By: Pushpendre Rastogi
-|     Update #: 176
+|     Update #: 178
 '''
 import collections
 import contextlib
@@ -831,3 +831,24 @@ def majority(lst):
 def crossval(n, k, shuffle=True):
     from sklearn.cross_validation import KFold
     return KFold(n=n, n_folds=k, shuffle=shuffle)
+
+class cache_to_disk(DecoratorBase):
+    def __init__(self, output_fn='cache_to_disk.pkl', hash_fnc=None):
+        ''' This decorator caches the output of a function to a shelf on disk.
+
+        Params
+        ------
+        output_fn: The name of the shelf file in which the outputs are stored.
+            If None
+        hash_fnc : The function used for hashing the inputs of the decorated
+            function. If this function is not provided then the default
+            hash function in python is used over the inputs.
+        '''
+        self.output_fn = output_fn
+        self.hash_fnc = hash_fnc
+        return
+
+    def __call__(self, f):
+        def runtime_wrapper(*args, **kwargs):
+            return f(*args, **kwargs)
+        return runtime_wrapper
