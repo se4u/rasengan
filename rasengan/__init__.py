@@ -466,6 +466,21 @@ def namespacer(obj):
     return NameSpacer(obj)
 
 
+def deep_namespacer(nested_dict):
+    ''' Many times we have a nested hierarchy of dictionaries.
+    But sometimes for agility we don't want to use the string
+    based indexing syntax. This function converts a deep nested
+    dictionary into nested NameSpacer objects
+    Params
+    ------
+    nested_dict : A dict of dicts and other values.
+
+    '''
+    return namespacer(
+        dict((k, deep_namespacer(v) if isinstance(v, dict) else v)
+             for k, v in nested_dict.iteritems()))
+
+
 def sample_from_list(lst, samples, return_generator=False):
     ''' Sample `samples` many points from a lst that are spaced evenly apart.
     If samples is a float then we may return a little less than exactly specified
