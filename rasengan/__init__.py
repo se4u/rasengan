@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Mon Feb 22 00:45:48 2016 (-0500)
+| Last-Updated: Fri Apr 15 20:02:52 2016 (-0400)
 |           By: Pushpendre Rastogi
-|     Update #: 157
+|     Update #: 176
 '''
 import collections
 import contextlib
@@ -394,7 +394,7 @@ def flatten(lol):
     '''
     l = []
     for e in lol:
-        if isinstance(e, list):
+        if isinstance(e, list) or isinstance(e, tuple):
             l.extend(flatten(e))
         else:
             l.append(e)
