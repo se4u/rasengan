@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Fri Apr 15 23:39:00 2016 (-0400)
+| Last-Updated: Sun Apr 24 09:20:58 2016 (-0400)
 |           By: Pushpendre Rastogi
-|     Update #: 178
+|     Update #: 224
 '''
 import collections
 import contextlib
@@ -63,6 +63,8 @@ def increase_print_indent():
 def decrease_print_indent():
     print_indent_fn.indent -= 1
 
+DISABLE_TICTOC = False
+
 
 @contextlib.contextmanager
 def tictoc(msg):
@@ -76,13 +78,15 @@ def tictoc(msg):
     Started Description
     Completed Description in XXXs
     '''
-    t = time.time()
-    increase_print_indent()
-    print "Started", msg
+    if not DISABLE_TICTOC:
+        t = time.time()
+        increase_print_indent()
+        print "Started", msg
     yield
-    decrease_print_indent()
-    print
-    print "Completed", msg, "in %0.1fs" % (time.time() - t)
+    if not DISABLE_TICTOC:
+        decrease_print_indent()
+        print
+        print "Completed", msg, "in %0.1fs" % (time.time() - t)
 
 
 class DecoratorBase(object):
@@ -832,7 +836,9 @@ def crossval(n, k, shuffle=True):
     from sklearn.cross_validation import KFold
     return KFold(n=n, n_folds=k, shuffle=shuffle)
 
+
 class cache_to_disk(DecoratorBase):
+
     def __init__(self, output_fn='cache_to_disk.pkl', hash_fnc=None):
         ''' This decorator caches the output of a function to a shelf on disk.
 
@@ -852,3 +858,56 @@ class cache_to_disk(DecoratorBase):
         def runtime_wrapper(*args, **kwargs):
             return f(*args, **kwargs)
         return runtime_wrapper
+
+
+def confidence_interval_of_mean_with_unknown_variance(obs, alpha=0.9, sample_contains_all_of_population=False):
+    '''
+    Params
+    ------
+    obs : An array of observations.
+    Returns
+    -------
+    The mean and a confidence interval around it.
+    '''
+    obs = numpy.array(obs).astype('float64')
+    assert obs.ndim == 1
+    if obs.shape[0] == 0:
+        raise ValueError("obs should not be an empty array")
+    if obs.shape[0] == 1:
+        mean = obs[0]
+        interval = (mean, mean)
+        return (mean, interval)
+
+    sample_mean = obs.mean()
+    standard_deviation = (obs.std(ddof=0)
+                          if sample_contains_all_of_population
+                          else obs.std(ddof=1))
+    if standard_deviation < 1e-10:
+        return (sample_mean, (sample_mean, sample_mean))
+    n = obs.shape[0]
+    standard_error = standard_deviation / numpy.sqrt(n)
+
+    from scipy.stats import t
+
+    return (sample_mean,
+            t.interval(alpha, n - 1, loc=sample_mean, scale=standard_error))
+
+from mpmath import mp, mpf
+mp.dps = 256
+
+# The mp_ functions can be 20 times slower !!
+
+
+def mp_log1mexp(x):
+    return mp.log(mpf(1) - mp.exp(x))
+
+
+def log1mexp(x):
+    if x >= 0:
+        raise ValueError
+    elif x < -1e10:
+        return numpy.log1p(-numpy.exp(x))
+    elif x <= -1e-6:
+        return numpy.log(-numpy.expm1(x))
+    else:
+        return x + numpy.log(numpy.expm1(-x))
