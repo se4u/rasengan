@@ -3,18 +3,19 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Sun Apr 24 09:20:58 2016 (-0400)
+| Last-Updated: Tue Jul 12 13:25:50 2016 (-0400)
 |           By: Pushpendre Rastogi
-|     Update #: 224
+|     Update #: 225
 '''
+from __future__ import print_function
 import collections
 import contextlib
 import time
 import numpy
 import random
-import print_hook
+from . import print_hook
 import sys
-from lev import lev
+from .lev import lev
 import itertools
 import os
 try:
@@ -81,12 +82,12 @@ def tictoc(msg):
     if not DISABLE_TICTOC:
         t = time.time()
         increase_print_indent()
-        print "Started", msg
+        print("Started", msg)
     yield
     if not DISABLE_TICTOC:
         decrease_print_indent()
-        print
-        print "Completed", msg, "in %0.1fs" % (time.time() - t)
+        print()
+        print("Completed", msg, "in %0.1fs" % (time.time() - t))
 
 
 class DecoratorBase(object):
@@ -138,7 +139,7 @@ class announce(DecoratorBase):
 
     def __call__(self, f):
         def runtime_wrapper(*args, **kwargs):
-            print "Started", f.__name__
+            print("Started", f.__name__)
             return f(*args, **kwargs)
         return runtime_wrapper
 
@@ -146,11 +147,11 @@ class announce(DecoratorBase):
 @contextlib.contextmanager
 def announce_ctm(task):
     increase_print_indent()
-    print "Started", task
+    print("Started", task)
     yield
     decrease_print_indent()
-    print
-    print "Finished", task
+    print()
+    print("Finished", task)
 
 
 class reseed(DecoratorBase):
@@ -236,7 +237,8 @@ def debug_support(capture_ctrl_c=True):
             traceback.print_exc()
             pdb.post_mortem(sys_exc_info[2])
         else:
-            raise sys_exc_info[0], sys_exc_info[1], sys_exc_info[2]
+            raise sys_exc_info[0](
+                sys_exc_info[1]).with_traceback(sys_exc_info[2])
 
 
 # http://www.dalkescientific.com/writings/diary/archive/2005/04/20/tracing_python_code.html
@@ -303,7 +305,7 @@ class Namespace(collections.MutableMapping):
     def __repr__(self):
         type_name = type(self).__name__
         arg_strings = []
-        for name, value in self.__dict__.iteritems():
+        for name, value in self.__dict__.items():
             arg_strings.append('%s=%r' % (name, value))
         if self.__name is None:
             return '%s(%s)' % (type_name, ', '.join(arg_strings))
@@ -482,7 +484,7 @@ def deep_namespacer(nested_dict):
     '''
     return namespacer(
         dict((k, deep_namespacer(v) if isinstance(v, dict) else v)
-             for k, v in nested_dict.iteritems()))
+             for k, v in nested_dict.items()))
 
 
 def sample_from_list(lst, samples, return_generator=False):
@@ -516,7 +518,7 @@ def sample_from_list(lst, samples, return_generator=False):
         if not return_generator:
             return lst[:samples * step_size:step_size]
         else:
-            return (lst[i] for i in xrange(0, samples * step_size, step_size))
+            return (lst[i] for i in range(0, samples * step_size, step_size))
 
 
 def validate_np_array(
@@ -529,13 +531,13 @@ def validate_np_array(
                                  ('mean-of-abs', numpy.absolute(value).mean(), mean)]:
             assert v < l, msg_template % (str(name), limit_type, l, v)
             if describe:
-                print 'Parameter %s limit_type %s, limit=%f, value=%f' % (
-                    str(name), limit_type, l, v)
+                print('Parameter %s limit_type %s, limit=%f, value=%f' % (
+                    str(name), limit_type, l, v))
         for limit_type, v, l in [('min', value.min(), _min)]:
             assert v > l, msg_template % (str(name), limit_type, l, v)
             if describe:
-                print 'Parameter %s limit_type %s, limit=%f, value=%f' % (
-                    str(name), limit_type, l, v)
+                print('Parameter %s limit_type %s, limit=%f, value=%f' % (
+                    str(name), limit_type, l, v))
     else:
         if not silent_fail:
             raise NotImplementedError
@@ -545,7 +547,7 @@ def validate_np_array(
 
 
 def sort_dictionary_by_values_in_descending_order(d):
-    return sorted(d.items(), key=lambda x: x[1], reverse=True)
+    return sorted(list(d.items()), key=lambda x: x[1], reverse=True)
 
 
 def get_tokenizer():
@@ -559,7 +561,7 @@ def pipeline_tokenizer():
     '''
     tknzr = get_tokenizer()
     for row in sys.stdin:
-        print ' '.join(tknzr.tokenize(row.strip()))
+        print(' '.join(tknzr.tokenize(row.strip())))
 
 
 def pipeline_dictionary(pattern_tokenize=0, lowercase=0):
@@ -578,7 +580,7 @@ def pipeline_dictionary(pattern_tokenize=0, lowercase=0):
                 token = token.lower()
             d[token] += 1
     for k, v in sort_dictionary_by_values_in_descending_order(d):
-        print k
+        print(k)
 
 
 def process_columns(f, *args, **kwargs):
@@ -605,7 +607,7 @@ def process_columns(f, *args, **kwargs):
 
 
 def _warning(message, category=UserWarning, filename='', lineno=-1):
-    print >> sys.stderr, message
+    print(message, file=sys.stderr)
     return
 
 import warnings
@@ -801,7 +803,7 @@ def randomized_check_grad(func, grad, x0, verbose=0, quota=20, tol=1e-8,
     errors = numpy.abs(numerical_dfY - theoretical_dfY)
     if verbose:
         with numpy_print_ctm(precision=2):
-            print 'individual_errors\n', errors
+            print('individual_errors\n', errors)
     err = max(errors)
     return ((err < tol)
             if return_decision
@@ -824,7 +826,7 @@ def ensure_dir(f, verbose=False, treat_as_dir=False):
     if not os.path.exists(d):
         os.makedirs(d)
         if verbose:
-            print 'Created directory', d
+            print('Created directory', d)
 
 
 def majority(lst):
