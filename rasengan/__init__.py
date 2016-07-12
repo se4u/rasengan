@@ -818,9 +818,9 @@ def ensure_dir(f, verbose=False, treat_as_dir=False):
     treat_as_dir: Is the input file really a directory.
     verbose : (default False)
     '''
-    d = (f
-         if treat_as_dir
-         else os.path.dirname(f))
+    d = os.path.expanduser(f
+                           if treat_as_dir
+                           else os.path.dirname(f))
     if not os.path.exists(d):
         os.makedirs(d)
         if verbose:
