@@ -119,13 +119,13 @@ class DecoratorBase(object):
 
     def __getattribute__(self, name):
         if name == "func":
-            return super(DecBase, self).__getattribute__(name)
+            return super(DecoratorBase, self).__getattribute__(name)
 
         return self.func.__getattribute__(name)
 
     def __setattr__(self, name, value):
         if name == "func":
-            return super(DecBase, self).__setattr__(name, value)
+            return super(DecoratorBase, self).__setattr__(name, value)
 
         return self.func.__setattr__(name, value)
 
@@ -400,7 +400,7 @@ class Namespace(collections.MutableMapping):
 
 
 def flatten(lol):
-    ''' Convert a nested list to a flat list
+    ''' Convert a nested list to a flat list. NOTE: This is not recursive !!
     Params
     ------
     lol : List of List
@@ -427,6 +427,10 @@ class NameSpacer(
         collections.MutableMapping,
         collections.MutableSequence,
         collections.MutableSet):
+
+    '''
+    TODO: What does this do?
+    '''
 
     def __init__(self, obj):
         self.obj = obj
