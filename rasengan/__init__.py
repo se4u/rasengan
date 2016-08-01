@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Tue Jul 12 13:25:50 2016 (-0400)
+| Last-Updated: Mon Aug  1 04:53:16 2016 (-0400)
 |           By: Pushpendre Rastogi
-|     Update #: 225
+|     Update #: 282
 '''
 from __future__ import print_function
 import collections
@@ -928,14 +928,15 @@ def confidence_interval_of_mean_with_unknown_variance(obs, alpha=0.9, sample_con
     return (sample_mean,
             t.interval(alpha, n - 1, loc=sample_mean, scale=standard_error))
 
-from mpmath import mp, mpf
-mp.dps = 256
-
-# The mp_ functions can be 20 times slower !!
-
-
-def mp_log1mexp(x):
-    return mp.log(mpf(1) - mp.exp(x))
+try:
+    # The mp_ functions can be 20 times slower !!
+    from mpmath import mp, mpf
+    mp.dps = 256
+except ImportError:
+    pass
+else:
+    def mp_log1mexp(x):
+        return mp.log(mpf(1) - mp.exp(x))
 
 
 def log1mexp(x):
@@ -947,3 +948,207 @@ def log1mexp(x):
         return numpy.log(-numpy.expm1(x))
     else:
         return x + numpy.log(numpy.expm1(-x))
+
+
+def pivot_lol_by_col(lol, col):
+    ''' Pivot a lol(list of lists) to a dict of lol
+    keyed by the column.
+
+    Example:
+    >>> lol = [[1, 2, 4], [3, 2], [4, 5]]
+    >>> print pivot_lol_by_col(lol, 1)
+    {2: [[1 4], [3,]], 5: [[4]]}
+    '''
+    d = collections.defaultdict(list)
+    for l in lol:
+        d[l[col]].append(l[:col] + l[col + 1:])
+    return dict(d)
+
+
+def pivot_key_to_list_map_by_item(klmap):
+    d = collections.defaultdict(list)
+    for k in klmap:
+        for e in klmap[k]:
+            d[e].append(k)
+    return dict(d)
+
+
+def around(s, at=0, bound=20):
+    if isinstance(bound, int):
+        start_bound = stop_bound = bound
+    else:
+        start_bound, stop_bound = bound
+    start = max(0, at - start_bound)
+    stop = min(len(s), at + stop_bound)
+    return s[start:stop]
+
+
+def html_entity_to_unicode_impl(m):
+    text = m.group(0)
+    if text[:2] == "&#":
+        # character reference
+        try:
+            return (int(text[3:], 16)
+                    if text[:3] == "&#x"
+                    else int(text[2:]))
+        except ValueError:
+            pass
+    else:
+        # named entity
+        try:
+            text = (html.entities.html5[text[1:]])
+        except KeyError:
+            pass
+    return text
+
+
+def html_entity_to_unicode(text):
+    ''' Convert html code point to unicode.
+
+    Copied from http://stackoverflow.com/questions/57708
+    convert-xml-html-entities-into-unicode-string-in-python
+    '''
+    return re.sub("&#?\w+;", html_entity_to_unicode_impl, text)
+
+
+def unicode_to_utf8_hex(c, prefix='%', fmt="X"):
+    assert sys.version_info.major >= 3
+    return "".join(
+        [(prefix + format(e, fmt))
+         for e
+         in c.encode("utf-8")])
+
+
+def wiki_encode_url(url):
+    assert sys.version_info.major >= 3
+    return re.sub(r'[^\x00-\x7F]',
+                  lambda c: unicode_to_utf8_hex(c.group(0)),
+                  url).replace('#', '%23')
+
+
+def flatfile_to_dict(fn, key_col=0, total_col=2):
+    assert total_col == 2, 'Not Implemented'
+    assert key_col == 0, 'Not Implemented'
+    d = dict()
+    with open(fn) as f:
+        for row in f:
+            row = row.strip().split()
+            d[row[key_col]] = row[1]
+    return d
+
+
+class OrderedDict_Indexable_By_StringKey_Or_Index(collections.MutableMapping):
+
+    ''' An ordered map from *Non-Integer keys* to values that does not support deletion.
+    We can index from either the string key OR the location of the string.
+    '''
+
+    def __init__(self, *args):
+        self._store = {}
+        self._idx2key = []
+        for (a, b) in args:
+            self.__setitem__(a, b)
+        return
+
+    def __contains__(self, key):
+        return key in self._store
+
+    def getkey(self, key_idx):
+        assert isinstance(key_idx, int)
+        return self._idx2key[key_idx]
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._store[self._idx2key[key]]
+        else:
+            return self._store[key]
+
+    def __setitem__(self, key, value):
+        if isinstance(key, int):
+            raise Exception('Integer valued keys are prohibited!')
+        self._store[key] = value
+        self._idx2key.append(key)
+        pass
+
+    def __delitem__(self, key):
+        raise NotImplementedError()
+
+    def __iter__(self):
+        return iter(self._idx2key)
+
+    def __len__(self):
+        return len(self._idx2key)
+
+
+def urlsafe_b64encode_pipe():
+    for row in sys.stdin:
+        print(base64.urlsafe_b64encode(row))
+
+
+def urlsafe_b64decode_pipe():
+    for row in sys.stdin:
+        sys.stdout.write(base64.urlsafe_b64decode(row.strip()))
+
+
+class _TcpStdIOShim_handler(BaseHTTPServer.BaseHTTPRequestHandler):
+
+    def do_HEAD(self):
+        self.send_response(200)
+        self.send_header("Content-type", "json")
+        self.end_headers()
+        return
+
+    def do_GET(self):
+        self.do_HEAD()
+        if self.server.stdio_proc.verbose:
+            print('self.path=', self.path)
+
+        self.wfile.write(
+            base64.urlsafe_b64encode(
+                self.server.stdio_proc(
+                    base64.urlsafe_b64decode(self.path[1:]))))
+        return
+
+
+class _TcpStdIOShim_proc(object):
+
+    def __init__(self, expect_proc, output_until, verbose=False):
+        self.expect_proc = expect_proc
+        self.output_until = output_until
+        self.verbose = verbose
+
+    def __call__(self, request):
+        self.expect_proc.sendline(request)
+        ret = self.expect_proc.expect_exact(self.output_until)
+        if self.verbose:
+            print('request=', request, 'ret=', ret,
+                  'self.expect_proc.before=', self.expect_proc.before)
+        return self.expect_proc.before
+
+
+class TcpStdIOShim(object):
+
+    ''' USAGE:
+    python -c 'from rasengan import TcpStdIOShim as T; T(verbose=True).execute()'
+    '''
+
+    def __init__(self, port=13579, cmd='cat', output_until='\n', verbose=False):
+        import pexpect
+        self.stdio_proc = _TcpStdIOShim_proc(
+            pexpect.spawn(cmd), output_until, verbose)
+        self.http_daemon = BaseHTTPServer.HTTPServer(
+            ('localhost', port), _TcpStdIOShim_handler)
+        self.http_daemon.stdio_proc = self.stdio_proc
+        self.verbose = verbose
+        if verbose:
+            print('Server running')
+
+    def execute(self):
+        try:
+            self.http_daemon.serve_forever()
+        except KeyboardInterrupt:
+            if self.verbose:
+                print('Received Keyboard interrupt')
+        finally:
+            self.http_daemon.server_close()
+            self.stdio_proc.expect_proc.kill(15)
