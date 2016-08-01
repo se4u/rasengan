@@ -1102,7 +1102,6 @@ class _TcpStdIOShim_handler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.do_HEAD()
         if self.server.stdio_proc.verbose:
             print('self.path=', self.path)
-
         self.wfile.write(
             base64.urlsafe_b64encode(
                 self.server.stdio_proc(
@@ -1118,7 +1117,9 @@ class _TcpStdIOShim_proc(object):
         self.verbose = verbose
 
     def __call__(self, request):
-        self.expect_proc.sendline(request)
+        self.expect_proc.send(request + '\n'
+                              if request[-1] != '\n'
+                              else request)
         ret = self.expect_proc.expect_exact(self.output_until)
         if self.verbose:
             print('request=', request, 'ret=', ret,
@@ -1141,9 +1142,11 @@ class TcpStdIOShim(object):
         self.http_daemon.stdio_proc = self.stdio_proc
         self.verbose = verbose
         if verbose:
-            print('Server running')
+            print('Server Configured')
 
     def execute(self):
+        if self.verbose:
+            print('Server Running')
         try:
             self.http_daemon.serve_forever()
         except KeyboardInterrupt:
