@@ -15,9 +15,19 @@ import numpy
 import random
 from . import print_hook
 import sys
-from .lev import lev
 import itertools
 import os
+import re
+import base64
+import BaseHTTPServer
+try:
+    from .lev import lev
+except:
+    pass
+try:
+    import html.entities
+except ImportError:
+    pass
 try:
     import ipdb as pdb
 except ImportError:
