@@ -853,26 +853,46 @@ def crossval(n, k, shuffle=True):
     return KFold(n=n, n_folds=k, shuffle=shuffle)
 
 
-class cache_to_disk(DecoratorBase):
+class cache_to_disk(object):
 
-    def __init__(self, output_fn='cache_to_disk.pkl', hash_fnc=None):
+    def __init__(self, shelf_fn='cache_to_disk.pkl', hash_fnc=None):
         ''' This decorator caches the output of a function to a shelf on disk.
-
+        TODO: The current implementation does not handle keyword arguments
+        to function.
         Params
         ------
-        output_fn: The name of the shelf file in which the outputs are stored.
-            If None
-        hash_fnc : The function used for hashing the inputs of the decorated
-            function. If this function is not provided then the default
-            hash function in python is used over the inputs.
+        shelf_fn:
+            The name of the shelf file in which the outputs are stored.
+        hash_fnc : x -> string
+            The function used for hashing the inputs of the decorated
+            function. The hash_fnc must return a string.
+            If this function is not provided then we just convert the
+            input to string.
         '''
-        self.output_fn = output_fn
-        self.hash_fnc = hash_fnc
-        return
+        self.shelf_fn = shelf_fn
+        self.hash_fnc = (lambda x: str(x)
+                         if hash_fnc is None
+                         else hash_fnc)
 
     def __call__(self, f):
-        def runtime_wrapper(*args, **kwargs):
-            return f(*args, **kwargs)
+        import shelve
+        try:
+            shelf = shelve.open(self.shelf_fn)
+        except Exception as e:
+            print (
+                e, 'If db type could not be determined then probably you are using an existing file.')
+            raise Exception(e)
+
+        def runtime_wrapper(*args):
+            key = str(self.hash_fnc(args))
+            try:
+                return shelf[key]
+            except KeyError:
+                val = f(*args)
+                shelf[key] = val
+                return val
+
+        runtime_wrapper.shelf = shelf
         return runtime_wrapper
 
 
