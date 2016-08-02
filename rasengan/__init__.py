@@ -1091,7 +1091,10 @@ def urlsafe_b64decode_pipe():
 
 
 class _TcpStdIOShim_handler(BaseHTTPServer.BaseHTTPRequestHandler):
-
+    protocol_version = 'HTTP/1.0'
+    # If set to 'HTTP/1.1', the server will permit HTTP persistent connections;
+    # however, the server must then include an accurate Content-Length header
+    # (using send_header()) in all of its responses to clients.
     def do_HEAD(self):
         self.send_response(200)
         self.send_header("Content-type", "json")
@@ -1138,7 +1141,7 @@ class TcpStdIOShim(object):
         self.stdio_proc = _TcpStdIOShim_proc(
             pexpect.spawn(cmd), output_until, verbose)
         self.http_daemon = BaseHTTPServer.HTTPServer(
-            ('localhost', port), _TcpStdIOShim_handler)
+            ('', port), _TcpStdIOShim_handler)
         self.http_daemon.stdio_proc = self.stdio_proc
         self.verbose = verbose
         if verbose:
