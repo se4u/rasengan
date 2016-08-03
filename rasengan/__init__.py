@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Mon Aug  1 04:53:16 2016 (-0400)
+| Last-Updated: Wed Aug  3 16:01:11 2016 (-0400)
 |           By: Pushpendre Rastogi
-|     Update #: 282
+|     Update #: 293
 '''
 from __future__ import print_function
 import collections
@@ -20,6 +20,7 @@ import os
 import re
 import base64
 import BaseHTTPServer
+import string
 try:
     from .lev import lev
 except:
@@ -32,6 +33,10 @@ try:
     import ipdb as pdb
 except ImportError:
     import pdb
+try:
+    from unidecode import unidecode
+except ImportError:
+    pass
 
 
 def print_indent_fn(text):
@@ -1095,6 +1100,7 @@ class _TcpStdIOShim_handler(BaseHTTPServer.BaseHTTPRequestHandler):
     # If set to 'HTTP/1.1', the server will permit HTTP persistent connections;
     # however, the server must then include an accurate Content-Length header
     # (using send_header()) in all of its responses to clients.
+
     def do_HEAD(self):
         self.send_response(200)
         self.send_header("Content-type", "json")
@@ -1158,3 +1164,54 @@ class TcpStdIOShim(object):
         finally:
             self.http_daemon.server_close()
             self.stdio_proc.expect_proc.kill(15)
+
+import functools
+
+
+def memoize(obj):
+    cache = obj.cache = {}
+
+    @functools.wraps(obj)
+    def memoizer(*args, **kwargs):
+        key = str(args) + str(kwargs)
+        if key not in cache:
+            cache[key] = obj(*args, **kwargs)
+        return cache[key]
+    return memoizer
+
+PUNCT_CHAR = set(''.join(chr(e) for e in range(
+    33, 48) + range(58, 65) + range(91, 97) + range(123, 127)))
+REGEX_SPECIAL_CHAR = set('[]().-|^{}*+$\?')
+
+
+@memoize
+def _clean_text_construct_regex(runs):
+    repeater = '{%d,}' % runs
+    l = ([e + repeater
+          for e in PUNCT_CHAR
+          if e not in REGEX_SPECIAL_CHAR]
+         + ['\\' + e + repeater
+            for e
+            in REGEX_SPECIAL_CHAR])
+    s = '(%s)' % ('|'.join(l))
+    return re.compile(s)
+
+
+def _clean_text_sub_fn(obj):
+    return obj.group(0)[0]
+
+
+def clean_text(text,
+               tr=('?[]{}', '.()()'),
+               remove_punct_runs=3):
+    ''' Remove unicode and substitute bad characters, based on
+    tuples of substitutions.
+    '''
+    if isinstance(text, str):
+        text = text.decode('utf-8')
+    text = unidecode(text).translate(string.maketrans(*tr))
+    if remove_punct_runs:
+        run_rex = _clean_text_construct_regex(remove_punct_runs)
+        return run_rex.sub(_clean_text_sub_fn, text)
+    else:
+        return text
