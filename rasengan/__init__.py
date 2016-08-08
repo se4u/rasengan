@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Wed Aug  3 16:01:11 2016 (-0400)
+| Last-Updated: Fri Aug  5 16:25:56 2016 (-0400)
 |           By: Pushpendre Rastogi
-|     Update #: 293
+|     Update #: 360
 '''
 from __future__ import print_function
 import collections
@@ -21,9 +21,15 @@ import re
 import base64
 import BaseHTTPServer
 import string
+from . import sPickle
+import termcolor
 try:
-    from .lev import lev
-except:
+    import cPickle as pickle
+except ImportError:
+    import pickle
+try:
+    from .lev import lev  # pylint: disable=import-error
+except ImportError:
     pass
 try:
     import html.entities
@@ -428,6 +434,49 @@ def batch_list(lst, n=1):
         yield lst[ndx:min(ndx + n, l)]
 
 
+class NaNList(collections.MutableSequence):
+
+    ''' A list which allows indexing with NaN. When indexed with NaN
+    the list returns NaN. The list itself can contain NaNs.
+    '''
+
+    def __init__(self, *args):
+        self.obj = list(args)
+
+    def __repr__(self):
+        return self.obj.__repr__()
+
+    def __eq__(self, other):
+        return self.obj == other
+
+    def __ne__(self, other):
+        return not (self.obj == other)
+
+    def __contains__(self, val):
+        return val in self.obj
+
+    def __getitem__(self, key):
+        try:
+            return self.obj.__getitem__(key)
+        except:
+            return float('nan')
+
+    def __setitem__(self, key, value):
+        self.obj.__setitem__(key, value)
+
+    def __delitem__(self, key):
+        self.obj.__delitem__(key)
+
+    def __iter__(self):
+        return self.obj.__iter__()
+
+    def __len__(self):
+        return self.obj.__len__()
+
+    def insert(self, i, e):
+        return self.obj.insert(i, e)
+
+
 class NameSpacer(
         collections.MutableMapping,
         collections.MutableSequence,
@@ -570,7 +619,7 @@ def sort_dictionary_by_values_in_descending_order(d):
 
 
 def get_tokenizer():
-    from pattern.en import tokenize
+    from pattern.en import tokenize  # pylint: disable=import-error,no-name-in-module
     return lambda x: tokenize(x)[0].split(' ')
 
 
@@ -598,7 +647,7 @@ def pipeline_dictionary(pattern_tokenize=0, lowercase=0):
             if lowercase:
                 token = token.lower()
             d[token] += 1
-    for k, v in sort_dictionary_by_values_in_descending_order(d):
+    for k, _ in sort_dictionary_by_values_in_descending_order(d):
         print(k)
 
 
@@ -625,8 +674,8 @@ def process_columns(f, *args, **kwargs):
     return
 
 
-def _warning(message, category=UserWarning, filename='', lineno=-1):
-    print(message, file=sys.stderr)
+def _warning(message, category=UserWarning, filename=sys.stderr, lineno=-1):
+    print(message, file=filename)
     return
 
 import warnings
@@ -928,7 +977,7 @@ def confidence_interval_of_mean_with_unknown_variance(obs, alpha=0.9, sample_con
     n = obs.shape[0]
     standard_error = standard_deviation / numpy.sqrt(n)
 
-    from scipy.stats import t
+    from scipy.stats import t  # pylint: disable=no-name-in-module
 
     return (sample_mean,
             t.interval(alpha, n - 1, loc=sample_mean, scale=standard_error))
@@ -941,7 +990,7 @@ except ImportError:
     pass
 else:
     def mp_log1mexp(x):
-        return mp.log(mpf(1) - mp.exp(x))
+        return mp.log(mpf(1) - mp.exp(x))  # pylint: disable=no-member
 
 
 def log1mexp(x):
@@ -1001,7 +1050,7 @@ def html_entity_to_unicode_impl(m):
     else:
         # named entity
         try:
-            text = (html.entities.html5[text[1:]])
+            text = (html.entities.html5[text[1:]])  # pylint: disable=no-member
         except KeyError:
             pass
     return text
@@ -1013,7 +1062,7 @@ def html_entity_to_unicode(text):
     Copied from http://stackoverflow.com/questions/57708
     convert-xml-html-entities-into-unicode-string-in-python
     '''
-    return re.sub("&#?\w+;", html_entity_to_unicode_impl, text)
+    return re.sub("&#?\w+;", html_entity_to_unicode_impl, text)  # pylint: disable=anomalous-backslash-in-string
 
 
 def unicode_to_utf8_hex(c, prefix='%', fmt="X"):
@@ -1181,7 +1230,7 @@ def memoize(obj):
 
 PUNCT_CHAR = set(''.join(chr(e) for e in range(
     33, 48) + range(58, 65) + range(91, 97) + range(123, 127)))
-REGEX_SPECIAL_CHAR = set('[]().-|^{}*+$\?')
+REGEX_SPECIAL_CHAR = set(r'[]().-|^{}*+$\?')
 
 
 @memoize
@@ -1215,3 +1264,238 @@ def clean_text(text,
         return run_rex.sub(_clean_text_sub_fn, text)
     else:
         return text
+
+
+class pklflow_ctx(object):
+
+    def __init__(self, in_fn, out_fn):
+        import argparse
+        arg_parser = argparse.ArgumentParser(description='')
+        arg_parser.add_argument('--in_fn', default=in_fn, type=str)
+        arg_parser.add_argument('--out_fn', default=out_fn, type=str)
+        self.args = arg_parser.parse_args()
+        self.ns = Exception("NS")
+        self.ns.out_data = None
+        with open(self.args.in_fn) as f:
+            self.ns.data = pickle.load(f)
+
+    def __enter__(self):
+        'NOTE: The return value of __enter__ is received by as'
+        return self.ns
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None:
+            with open(self.args.out_fn, 'wb') as f:
+                pickle.dump(self.ns.out_data, f)
+        else:
+            print("Not Saving any data, since exception occurred. "
+                  "It is possible to implement strategies for incrementally "
+                  "saving data.")
+
+
+@memoize
+def sentence_segmenter_tokenizer():
+    import nltk
+    tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
+    tokenizer._params.abbrev_types.update(  # pylint: disable=protected-access,no-member
+        ['e.j', 'u.s', 'b.p', 'pres', 'gov', '1a', 'fmr', 'rev', 'pfc', 'lieut',
+         'lt', 'ex', 'sec', 'atty', 'gen', 'pvt', 'rep', 'def'])
+    tokenizer._params.collocations.update(  # pylint: disable=protected-access,no-member
+        [('lt', 'governor'),
+         ('mt', 'everest'),
+         ('j.d', 'hayworth'),
+         ('j.d', 'baldwin')])
+    return tokenizer
+
+
+def sentence_segmenter(para):
+    ''' Segment the paragraph into sentences.
+    Returns the span_starts and span_ends as a list of tuples.
+    '''
+    tokenizer = sentence_segmenter_tokenizer()
+    return tokenizer.span_tokenize(para)  # pylint: disable=no-member
+
+
+def tokens_in_tokenization_corresponding_to_a_span(sent, start, end, tokens):
+    ''' Consider the sentence 'I love candy.'
+    Let's say our existing span of interest is (start=3, end=8); but our
+    tokenization is [I, love, candy, .]
+    We will return [1, 3] as the smallest interval of tokens that overlaps
+    our segment of interest. This interval excludes endpoint.
+
+    >> f = tokens_in_tokenization_corresponding_to_a_span
+    >> f('I love candy and apple.', 7, 12, ['I', 'love', 'candy', 'and', 'apple', '.'])
+    (2, 3)
+    '''
+    assert end > start
+    space_till_start = sent[:start].count(' ')
+    space_till_end = sent[:end].count(' ')
+    sent = sent.replace(' ', '')
+    start = start - space_till_start
+    end = end - space_till_end
+    t_start = 0
+    start_tok = 0
+    for t_idx, t in enumerate(tokens):
+        t_end = t_start + len(t)
+        # Now find the index of highest t_start that is less than or equal to
+        # start.
+        if t_start <= start:
+            start_tok = t_idx
+        # Find the index of smallest t_end that is higher than or equal to end.
+        if t_end >= end:
+            return (start_tok, t_idx + 1)
+        t_start = t_end
+    return (start_tok, len(tokens))
+
+
+def get_referents(canonical_mention_sentence_id,
+                  canonical_mention_tokens,
+                  canonical_mention_token_end_idx,
+                  tokenized_sentences,
+                  pronomial_coref=True):
+    ''' Consider a list of sentences like:
+    - Howard was glad that, like so many other doubters, he was proving Hugh
+      wrong.
+    - Howard also mentioned that he saw his SIRIUS coworker, [Martha Stewart],
+      last night when he was dining with his daughter.
+    - Howard said Martha came over to his table and requested some
+      pointers for her satellite
+
+    The tokens in brackets are known to
+    correspond to a know entity, clearly other mentions of 'Martha' and 'she'
+    and 'her' also refer to the same entity. This function marks all
+    coreferent tokens of this type. We use the following heuristic, any
+    tokens that match with the canonical mention tokens are coreferent.
+    Any pronouns that appear after the canonical mention are also coreferent.
+
+    We return a list of (sentence_id, token_id)
+
+    >> from rasengan import get_referents as g;
+    >> s= ['Howard was glad that , like so many other doubters, he was proving Hugh wrong'.split(),
+           'Howard also mentioned that he saw his SIRIUS coworker Martha Stewart last night when he was dining with his daughter .'.split(),
+           'Howard said Martha came over to his table and requested some pointers for her satellite'.split()]
+    >> v = g(1, ['Martha', 'Stewart'], 11, s)
+    >> print [s[a][b] for [a, b] in v]
+    ['Martha', 'Stewart', 'Martha', 'her']
+    '''
+
+    PRONOUN_TO_GENDER = dict(him=0, his=0, he=0, she=1, her=1, hers=1)
+    # from gender import gender_detector, PRONOUN_TO_GENDER
+    cmt = [e.lower() for e in canonical_mention_tokens]
+    ret = []
+    unlikely_gender = {}
+    for (sent_idx, sent) in enumerate(tokenized_sentences):
+        for tok_idx, tok in enumerate(sent):
+            tok = tok.lower()
+            if tok in cmt:
+                ret.append((sent_idx, tok_idx))
+            if pronomial_coref:
+                if ((sent_idx < canonical_mention_sentence_id
+                     or (sent_idx == canonical_mention_sentence_id
+                         and tok_idx < canonical_mention_token_end_idx))
+                        and tok in PRONOUN_TO_GENDER):
+                    unlikely_gender[PRONOUN_TO_GENDER[tok]] = None
+                if ((sent_idx > canonical_mention_sentence_id
+                     or (sent_idx == canonical_mention_sentence_id
+                         and tok_idx >= canonical_mention_token_end_idx))
+                        and tok in PRONOUN_TO_GENDER
+                        and PRONOUN_TO_GENDER[tok] not in unlikely_gender):
+                    ret.append((sent_idx, tok_idx))
+    return ret
+
+
+def reshape_conll(parse):
+    ID = NaNList()
+    W = NaNList()
+    Tc = NaNList()
+    Tf = NaNList()
+    P = NaNList()
+    R = NaNList()
+    for (i, w, _1, tc, tf, _2, p, r, _3, _4) in parse:
+        ID.append(int(i) - 1)
+        W.append(w)
+        Tc.append(tc)
+        Tf.append(tf)
+        P.append(int(p) - 1)
+        R.append(r)
+    return (ID, W, Tc, Tf, P, R)
+
+
+class open_wmdoe(object):
+
+    '''wmdoe = Write Mode, Delete on Exception.
+    Open File in write mode, and in case of exceptions delete the file.
+    '''
+
+    def __init__(self, fn, extra='b'):
+        self.f = open(fn, 'w' + extra)
+
+    def __enter__(self):
+        return self.f
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None:
+            pass
+        else:
+            print('Deleting file', self.f.name, file=sys.stderr)
+            self.f.close()
+            os.remove(self.f.name)
+
+
+def entity_descriptors(referents, conll_parse, debug_print=False):
+    ''' Get the tokens that describe the tokens mentioned in
+    /referents/ using the provided conll_parse, which is a list
+    of lists.
+    '''
+    # Initialize the descriptors.
+    ETS = referents
+    B = {}
+    D = {}
+    CONVERGED = False
+    (ID, W, Tc, Tf, P, R) = reshape_conll(conll_parse)
+    # NOTE: This pattern of growing a set to convergence by
+    # applying rules should be repeatable. It would probably
+    # need standardization of what we are growing.
+    # Grow descriptors till convergence.
+    while not CONVERGED:
+        OLD_LEN_BD = len(B) + len(D)
+        for (i, w, tc, tf, p, r) in itertools.izip(
+                ID, W, Tc, Tf, P, R):
+            if ((p in ETS and r == 'appos')
+                    or (p in D and r in ['acomp', 'nn'])
+                    or (P[p] in D and r in ['pobj', 'pcomp'])
+                    or (p in B and r in ['pobj', 'dobj'])
+                    or (P[p] in B and R[p] in ['pobj', 'dobj']) and r == 'conj'):
+                D[i] = True
+            if ((i in ETS and r in ['nsubj', 'nsubjpass'])
+                    or (i in ETS and r in ['poss', 'advmod'])):
+                D[p] = True
+            if (Tc[p] == 'VERB' and r == 'dobj' and p in D):
+                B[p] = True
+        NEW_LEN_BD = len(B) + len(D)
+        CONVERGED = (NEW_LEN_BD == OLD_LEN_BD)
+        pass
+    if debug_print and len(referents):
+        print(markup_tokens(
+            W, dict([(_, 'red') for _ in D]
+                    + [(_, 'green') for _ in referents])), '\n',
+              file=sys.stderr)
+    return D
+
+
+def markup_tokens(tokens, idx_to_color, sep=' '):
+    string_builder = []
+    for idx, token in enumerate(tokens):
+        try:
+            string_builder.append(
+                str(termcolor.colored(token, idx_to_color[idx])))
+        except KeyError:
+            string_builder.append(token)
+    return sep.join(string_builder)
+
+
+def uniq_c(iterable, sort=False):
+    ret = collections.Counter(iterable).items()
+    if sort:
+        ret.sort(key=lambda e: e[1], reverse=True)
+    return ret

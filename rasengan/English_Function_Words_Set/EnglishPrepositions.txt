@@ -1,0 +1,142 @@
+////////////////////////////////////////////////////////////////////////////////
+//
+//  File:
+//    EnglishPrepositions.txt
+//
+//  Description:
+//    English prepositions organized alphabetically.
+//    The list is meant to be exhaustive. Contributions are welcome.
+//
+//  Origin:
+//    Original compilation by Leah Gilner and Franc Morales.
+//
+//  Comments:
+//    This document has been made by Leah Gilner and Franc Morales.
+//    URL:  http://www.sequencepublishing.com
+//    Direct corrections, omissions, questions to: info@sequencepublishing.com
+//
+//  History:
+//    5 October 2005
+//    Produced this machine-ready file.
+//
+//    26 September 2006
+//    Implemented a parseable header format consistent across files.
+//
+////////////////////////////////////////////////////////////////////////////////
+aboard
+about
+above
+absent
+according
+across
+after
+against
+ahead
+all
+over
+along
+alongside
+amid
+amidst
+among
+amongst
+anti
+around
+as
+of
+aside
+astraddle
+astride
+at
+away
+from
+bar
+barring
+because
+before
+behind
+below
+beneath
+beside
+besides
+between
+beyond
+but
+by
+the
+of
+circa
+close by
+close to
+concerning
+considering
+despite
+down
+due to
+during
+except
+excepting
+excluding
+failing
+following
+for
+for all
+from
+given
+in
+between
+including
+inside
+instead
+into
+less
+like
+minus
+near
+notwithstanding
+of
+off
+on
+on top of
+onto
+opposite
+other
+than
+out
+out
+outside
+over
+past
+pending
+per
+pertaining
+plus
+regarding
+respecting
+round
+save
+saving
+similar
+since
+than
+thanks
+through
+throughout
+thru
+till
+to
+toward
+towards
+under
+underneath
+unlike
+until
+unto
+up
+upon
+versus
+via
+wanting
+with
+within
+without
