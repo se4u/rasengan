@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Fri Aug  5 16:25:56 2016 (-0400)
+| Last-Updated: Sat Aug 13 14:39:44 2016 (-0400)
 |           By: Pushpendre Rastogi
-|     Update #: 360
+|     Update #: 401
 '''
 from __future__ import print_function
 import collections
@@ -1372,7 +1372,8 @@ def get_referents(canonical_mention_sentence_id,
 
     >> from rasengan import get_referents as g;
     >> s= ['Howard was glad that , like so many other doubters, he was proving Hugh wrong'.split(),
-           'Howard also mentioned that he saw his SIRIUS coworker Martha Stewart last night when he was dining with his daughter .'.split(),
+           'Howard also mentioned that he saw his SIRIUS coworker Martha Stewart last night when he was dining with his daughter .'.split(
+               ),
            'Howard said Martha came over to his table and requested some pointers for her satellite'.split()]
     >> v = g(1, ['Martha', 'Stewart'], 11, s)
     >> print [s[a][b] for [a, b] in v]
@@ -1499,3 +1500,65 @@ def uniq_c(iterable, sort=False):
     if sort:
         ret.sort(key=lambda e: e[1], reverse=True)
     return ret
+
+
+def groupby(fn, mode='r', predicate=None, yield_iter=False):
+    if predicate is None:
+        predicate = lambda x: x != '\n'
+    for k, v in itertools.groupby(open(fn, mode), predicate):
+        if k:
+            yield (v if yield_iter else list(v))
+
+
+class GrayCombinatorialCounter(object):
+
+    def __init__(self, lim=(2, 3, 3), return_jumps=True, add_beginning_state=False):
+        self.lim = lim
+        self.state = [0] * len(lim)
+        self._raise = False
+        self.carry = [False] * len(lim)
+        self.carry_from = list(lim)
+        assert not (
+            return_jumps and add_beginning_state), "Jumps can't have beginning state"
+        self.return_jumps = return_jumps
+        self.add_beginning_state = add_beginning_state
+
+    def pos_to_update(self, ppos):
+        if ppos < 0:
+            raise StopIteration
+        if self.state[ppos] != ((self.carry_from[ppos] - 1) % self.lim[ppos]):
+            return ppos
+        elif self.state[ppos] == ((self.carry_from[ppos] - 1) % self.lim[ppos]):
+            self.carry[ppos] = True
+            self.carry_from[ppos] = self.state[ppos]
+            return self.pos_to_update(ppos - 1)
+        elif (self.state[ppos] == self.carry_from[ppos]
+              and self.carry[ppos]):
+            self.carry[ppos] = False
+            return ppos
+        else:
+            raise Exception()
+
+    def update(self, p2u):
+        self.state[p2u] = ((self.state[p2u] + 1)
+                           % self.lim[p2u])
+        return self
+
+    def next(self):
+        if self.add_beginning_state:
+            self.add_beginning_state = False
+            return list(self.state)
+        else:
+            p2u = self.pos_to_update(len(self.lim) - 1)
+            self.update(p2u)
+            return (p2u
+                    if self.return_jumps
+                    else list(self.state))
+
+    def __iter__(self):
+        return self
+
+
+#  Local Variables:
+#  eval: (progn (eldoc-mode -1) (anaconda-mode -1) (flycheck-mode -1) (company-mode -1))
+#  End:
