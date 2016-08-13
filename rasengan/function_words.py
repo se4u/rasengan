@@ -4,9 +4,9 @@
 | Description : List of function words.
 | Author      : Pushpendre Rastogi
 | Created     : Sat Aug  6 16:28:14 2016 (-0400)
-| Last-Updated: Sat Aug  6 16:35:02 2016 (-0400)
+| Last-Updated: Fri Aug 12 18:05:01 2016 (-0400)
 |           By: Pushpendre Rastogi
-|     Update #: 2
+|     Update #: 4
 '''
 import os
 
@@ -28,3 +28,8 @@ def get_function_words():
                 os.path.join(os.path.dirname(__file__), _dir, fn)):
             l.append(row.strip())
     return l
+
+
+def get_auxiliary_verbs():
+    return ('be am are is was were being been can could dare do does did have '
+            'has had having may might must need ought shall should will would').split()
