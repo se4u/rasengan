@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Sat Aug 13 14:39:44 2016 (-0400)
+| Last-Updated: Sun Aug 21 16:05:34 2016 (-0400)
 |           By: Pushpendre Rastogi
-|     Update #: 401
+|     Update #: 415
 '''
 from __future__ import print_function
 import collections
@@ -674,8 +674,8 @@ def process_columns(f, *args, **kwargs):
     return
 
 
-def _warning(message, category=UserWarning, filename=sys.stderr, lineno=-1):
-    print(message, file=filename)
+def _warning(message, category=UserWarning, filename=None, lineno=-1):
+    print(message, file=sys.stderr)
     return
 
 import warnings
@@ -684,6 +684,13 @@ warnings.showwarning = _warning
 
 def warn(msg):
     warnings.warn(msg)
+
+
+@contextlib.contextmanager
+def warn_ctm(msg):
+    warn('Warning: ' + str(msg))
+    yield
+    return
 
 
 def argmax(iterable):
@@ -1097,11 +1104,13 @@ class OrderedDict_Indexable_By_StringKey_Or_Index(collections.MutableMapping):
     We can index from either the string key OR the location of the string.
     '''
 
-    def __init__(self, *args):
+    def __init__(self, *args, **kwargs):
         self._store = {}
         self._idx2key = []
         for (a, b) in args:
             self.__setitem__(a, b)
+        for (a, b) in kwargs.iteritems():
+            self.__setitems__(a, b)
         return
 
     def __contains__(self, key):
@@ -1120,8 +1129,9 @@ class OrderedDict_Indexable_By_StringKey_Or_Index(collections.MutableMapping):
     def __setitem__(self, key, value):
         if isinstance(key, int):
             raise Exception('Integer valued keys are prohibited!')
+        if key not in self._store:
+            self._idx2key.append(key)
         self._store[key] = value
-        self._idx2key.append(key)
         pass
 
     def __delitem__(self, key):
@@ -1550,14 +1560,30 @@ class GrayCombinatorialCounter(object):
             return list(self.state)
         else:
             p2u = self.pos_to_update(len(self.lim) - 1)
+            oldval = self.state[p2u]
             self.update(p2u)
-            return (p2u
+            newval = self.state[p2u]
+            return ((p2u, oldval, newval)
                     if self.return_jumps
                     else list(self.state))
 
     def __iter__(self):
         return self
 
+
+def exp_normalize(arr):
+    from scipy.misc import logsumexp
+    deno = logsumexp(arr)
+    return [numpy.exp(e - deno) for e in arr]
+
+
+def force_open(fn, mode='r'):
+    try:
+        return open(fn, mode)
+    except IOError:
+        os.makedirs(os.path.dirname(fn))
+        open(fn, 'a').close()
+    return open(fn, mode)
 
 #  Local Variables:
 #  eval: (progn (eldoc-mode -1) (anaconda-mode -1) (flycheck-mode -1) (company-mode -1))
