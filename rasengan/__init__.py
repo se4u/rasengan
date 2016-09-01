@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Sun Aug 21 16:05:34 2016 (-0400)
+| Last-Updated: Thu Sep  1 12:51:48 2016 (-0400)
 |           By: Pushpendre Rastogi
-|     Update #: 415
+|     Update #: 416
 '''
 from __future__ import print_function
 import collections
@@ -60,7 +60,7 @@ def print_indent_and_redirect_to_file(text):
     return text
 
 
-def setup_print_indent(ofh=None):
+def setup_print_indent(ofh=None, override='stdout'):
     print_indent_fn.indent = 0
     print_indent_and_redirect_to_file.ofh = ofh
     if print_hook.PrintHook().already_started:
@@ -70,16 +70,16 @@ def setup_print_indent(ofh=None):
         func=(print_indent_fn
               if ofh is None
               else print_indent_and_redirect_to_file),
-        override='stdout')
+        override=override)
     return setup_print_indent.printhook
 
 
-def increase_print_indent():
+def increase_print_indent(override='stdout'):
     try:
         print_indent_fn.indent += 1
     except AttributeError:
-        setup_print_indent()
-        increase_print_indent()
+        setup_print_indent(override=override)
+        increase_print_indent(override=override)
 
 
 def decrease_print_indent():
@@ -89,7 +89,7 @@ DISABLE_TICTOC = False
 
 
 @contextlib.contextmanager
-def tictoc(msg):
+def tictoc(msg, override='stdout'):
     ''' Simplify the addition of timing and profiling instructions in python
     code. Use this context manager as:
 
@@ -100,15 +100,15 @@ def tictoc(msg):
     Started Description
     Completed Description in XXXs
     '''
+    stream = (sys.stdout if override == 'stdout' else sys.stderr)
     if not DISABLE_TICTOC:
         t = time.time()
-        increase_print_indent()
-        print("Started", msg)
+        increase_print_indent(override=override)
+        print("Started", msg, file=stream)
     yield
     if not DISABLE_TICTOC:
         decrease_print_indent()
-        print()
-        print("Completed", msg, "in %0.1fs" % (time.time() - t))
+        print("\nCompleted", msg, "in %0.1fs" % (time.time() - t), file=stream)
 
 
 class DecoratorBase(object):
