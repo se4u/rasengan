@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Thu Sep  1 12:51:48 2016 (-0400)
+| Last-Updated: Wed Sep  7 19:29:53 2016 (-0400)
 |           By: Pushpendre Rastogi
-|     Update #: 416
+|     Update #: 425
 '''
 from __future__ import print_function
 import collections
@@ -650,6 +650,32 @@ def pipeline_dictionary(pattern_tokenize=0, lowercase=0):
     for k, _ in sort_dictionary_by_values_in_descending_order(d):
         print(k)
 
+
+class TokenMapper(object):
+    't2i = Token to index map'
+    def __init__(self):
+        self.t2i = {}
+        self.vocab_size = 0
+        self.i2t = None
+
+    def __call__(self, tokens):
+        l = []
+        for tok in tokens:
+            i = None
+            try:
+                i = self.t2i[tok]
+            except KeyError:
+                i = self.vocab_size
+                self.t2i[tok] = i
+                self.vocab_size += 1
+            l.append(i)
+        return l
+
+    def finalize(self):
+        self.i2t = dict((a,b) for (b,a) in self.t2i.iteritems())
+
+    def __getitem__(self, indices):
+        return [self.i2t[i] for i in indices]
 
 def process_columns(f, *args, **kwargs):
     ''' process each row passed in through stdin.
@@ -1309,12 +1335,16 @@ def sentence_segmenter_tokenizer():
     tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
     tokenizer._params.abbrev_types.update(  # pylint: disable=protected-access,no-member
         ['e.j', 'u.s', 'b.p', 'pres', 'gov', '1a', 'fmr', 'rev', 'pfc', 'lieut',
-         'lt', 'ex', 'sec', 'atty', 'gen', 'pvt', 'rep', 'def'])
+         'lt', 'ex', 'sec', 'atty', 'gen', 'pvt', 'rep', 'def', 'capt', 'jr',
+         'fr', 'mr', 'ms', 'hon', 'dr', 'gen', 'cmdr', 'cpl', 'sgt', 'det', 'ca',
+         'reb', 'shri', 'sir', 'lieut', 'cpt'])
     tokenizer._params.collocations.update(  # pylint: disable=protected-access,no-member
         [('lt', 'governor'),
          ('mt', 'everest'),
          ('j.d', 'hayworth'),
          ('j.d', 'baldwin')])
+    # Get rid of the junk punkt training.
+    tokenizer._params.ortho_context = collections.defaultdict(int)
     return tokenizer
 
 
@@ -1355,6 +1385,7 @@ def tokens_in_tokenization_corresponding_to_a_span(sent, start, end, tokens):
         if t_end >= end:
             return (start_tok, t_idx + 1)
         t_start = t_end
+    # This return statement is only reached if we cant find an end.
     return (start_tok, len(tokens))
 
 
@@ -1511,6 +1542,17 @@ def uniq_c(iterable, sort=False):
         ret.sort(key=lambda e: e[1], reverse=True)
     return ret
 
+def deduplicate_unhashables(lst):
+    '''
+    >> deduplicate_unhashables([1, 1, 3, 2, 3, 3, 4])
+    [1, 2, 3, 4]
+    '''
+    lst = sorted(lst)
+    ret = [lst[0]]
+    for e in lst[1:]:
+        if e != ret[-1]:
+            ret.append(e)
+    return ret
 
 def groupby(fn, mode='r', predicate=None, yield_iter=False):
     if predicate is None:
