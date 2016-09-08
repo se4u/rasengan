@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Wed Sep  7 19:29:53 2016 (-0400)
+| Last-Updated: Wed Sep  7 21:59:26 2016 (-0400)
 |           By: Pushpendre Rastogi
-|     Update #: 425
+|     Update #: 426
 '''
 from __future__ import print_function
 import collections
@@ -652,7 +652,9 @@ def pipeline_dictionary(pattern_tokenize=0, lowercase=0):
 
 
 class TokenMapper(object):
+
     't2i = Token to index map'
+
     def __init__(self):
         self.t2i = {}
         self.vocab_size = 0
@@ -672,10 +674,11 @@ class TokenMapper(object):
         return l
 
     def finalize(self):
-        self.i2t = dict((a,b) for (b,a) in self.t2i.iteritems())
+        self.i2t = dict((a, b) for (b, a) in self.t2i.iteritems())
 
     def __getitem__(self, indices):
         return [self.i2t[i] for i in indices]
+
 
 def process_columns(f, *args, **kwargs):
     ''' process each row passed in through stdin.
@@ -1136,7 +1139,7 @@ class OrderedDict_Indexable_By_StringKey_Or_Index(collections.MutableMapping):
         for (a, b) in args:
             self.__setitem__(a, b)
         for (a, b) in kwargs.iteritems():
-            self.__setitems__(a, b)
+            self.__setitem__(a, b)
         return
 
     def __contains__(self, key):
@@ -1542,6 +1545,7 @@ def uniq_c(iterable, sort=False):
         ret.sort(key=lambda e: e[1], reverse=True)
     return ret
 
+
 def deduplicate_unhashables(lst):
     '''
     >> deduplicate_unhashables([1, 1, 3, 2, 3, 3, 4])
@@ -1553,6 +1557,7 @@ def deduplicate_unhashables(lst):
         if e != ret[-1]:
             ret.append(e)
     return ret
+
 
 def groupby(fn, mode='r', predicate=None, yield_iter=False):
     if predicate is None:
@@ -1626,6 +1631,13 @@ def force_open(fn, mode='r'):
         os.makedirs(os.path.dirname(fn))
         open(fn, 'a').close()
     return open(fn, mode)
+
+
+def ngramatize(l, n=2, bos='<BOS>'):
+    if n == 1:
+        return l
+    l = [bos] * (n - 1) + l
+    return [tuple(l[i:i + n]) for i in range(len(l) - (n - 1))]
 
 #  Local Variables:
 #  eval: (progn (eldoc-mode -1) (anaconda-mode -1) (flycheck-mode -1) (company-mode -1))
