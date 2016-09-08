@@ -30,6 +30,7 @@ accordingly
 after
 albeit
 although
+also
 and
 as
 because

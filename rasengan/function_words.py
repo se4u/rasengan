@@ -4,9 +4,9 @@
 | Description : List of function words.
 | Author      : Pushpendre Rastogi
 | Created     : Sat Aug  6 16:28:14 2016 (-0400)
-| Last-Updated: Fri Aug 12 18:05:01 2016 (-0400)
+| Last-Updated: Thu Sep  8 01:15:34 2016 (-0400)
 |           By: Pushpendre Rastogi
-|     Update #: 4
+|     Update #: 6
 '''
 import os
 
@@ -19,14 +19,16 @@ def read_commented_list_file(fn, comment='//'):
 
 
 def get_function_words():
-    l = []
+    l = get_auxiliary_verbs()
     _dir = 'English_Function_Words_Set'
     for fn in ('EnglishAuxiliaryVerbs.txt EnglishConjunctions.txt '
                'EnglishDeterminers.txt EnglishPrepositions.txt '
-               'EnglishPronouns.txt EnglishQuantifiers.txt').split():
+               'EnglishPronouns.txt EnglishQuantifiers.txt '
+               'Punctuation.txt nltk_stopwords').split():
         for row in read_commented_list_file(
                 os.path.join(os.path.dirname(__file__), _dir, fn)):
             l.append(row.strip())
+
     return l
 
 

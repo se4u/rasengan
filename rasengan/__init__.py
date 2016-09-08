@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Wed Sep  7 21:59:26 2016 (-0400)
+| Last-Updated: Thu Sep  8 00:57:20 2016 (-0400)
 |           By: Pushpendre Rastogi
-|     Update #: 426
+|     Update #: 435
 '''
 from __future__ import print_function
 import collections
@@ -23,6 +23,7 @@ import BaseHTTPServer
 import string
 from . import sPickle
 import termcolor
+import six
 try:
     import cPickle as pickle
 except ImportError:
@@ -258,8 +259,11 @@ def debug_support(capture_ctrl_c=True):
             traceback.print_exc()
             pdb.post_mortem(sys_exc_info[2])
         else:
-            raise sys_exc_info[0](
-                sys_exc_info[1]).with_traceback(sys_exc_info[2])
+            # Fixed because of github.com/se4u/neural_wfst/issues/1
+            # Fix based on stackoverflow.com/questions/14503751
+            # how-to-write-exception-reraising-code-thats-compatible-
+            # with-both-python-2-and-python-3
+            six.reraise(*sys_exc_info)
 
 
 # http://www.dalkescientific.com/writings/diary/archive/2005/04/20/tracing_python_code.html
@@ -659,6 +663,7 @@ class TokenMapper(object):
         self.t2i = {}
         self.vocab_size = 0
         self.i2t = None
+        self.final = False
 
     def __call__(self, tokens):
         l = []
@@ -666,18 +671,36 @@ class TokenMapper(object):
             i = None
             try:
                 i = self.t2i[tok]
-            except KeyError:
-                i = self.vocab_size
-                self.t2i[tok] = i
-                self.vocab_size += 1
+            except KeyError as e:
+                if self.final:
+                    raise e
+                else:
+                    i = self.vocab_size
+                    self.t2i[tok] = i
+                    self.vocab_size += 1
             l.append(i)
         return l
 
-    def finalize(self):
+    def finalize(self, max_tok=None):
+        self.max_tok = max_tok
+        if max_tok is not None:
+            self.t2i['<BOS>'] = (max_tok - 1)
         self.i2t = dict((a, b) for (b, a) in self.t2i.iteritems())
+        self.final = True
 
-    def __getitem__(self, indices):
-        return [self.i2t[i] for i in indices]
+    def __getitem__(self, index):
+        try:
+            return self.i2t[index]
+        except TypeError:
+            return [self.__getitem__[i] for i in indices]
+        except KeyError:
+            ct = index % self.max_tok
+            pt = ((index - ct) / self.max_tok - 1)
+            try:
+                return (self.i2t[pt], self.i2t[ct])
+            except KeyError:
+                import pdb
+                pdb.set_trace()
 
 
 def process_columns(f, *args, **kwargs):
@@ -1156,8 +1179,8 @@ class OrderedDict_Indexable_By_StringKey_Or_Index(collections.MutableMapping):
             return self._store[key]
 
     def __setitem__(self, key, value):
-        if isinstance(key, int):
-            raise Exception('Integer valued keys are prohibited!')
+        if isinstance(key, int) and key >= 0:
+            raise Exception('Positive Integer valued keys are prohibited!')
         if key not in self._store:
             self._idx2key.append(key)
         self._store[key] = value
