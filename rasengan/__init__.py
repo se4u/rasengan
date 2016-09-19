@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Thu Sep  8 00:57:20 2016 (-0400)
+| Last-Updated: Sun Sep 18 23:05:32 2016 (-0400)
 |           By: Pushpendre Rastogi
-|     Update #: 435
+|     Update #: 440
 '''
 from __future__ import print_function
 import collections
@@ -692,7 +692,7 @@ class TokenMapper(object):
         try:
             return self.i2t[index]
         except TypeError:
-            return [self.__getitem__[i] for i in indices]
+            return [self[i] for i in index]
         except KeyError:
             ct = index % self.max_tok
             pt = ((index - ct) / self.max_tok - 1)
@@ -735,12 +735,12 @@ warnings.showwarning = _warning
 
 
 def warn(msg):
-    warnings.warn(msg)
+    warnings.warn('Warning: ' + str(msg))
 
 
 @contextlib.contextmanager
 def warn_ctm(msg):
-    warn('Warning: ' + str(msg))
+    warn(msg)
     yield
     return
 
@@ -1297,6 +1297,9 @@ REGEX_SPECIAL_CHAR = set(r'[]().-|^{}*+$\?')
 
 @memoize
 def _clean_text_construct_regex(runs):
+    ''' Remove multiple runs of punctuations. E.g.
+    convert ...... -> .
+    '''
     repeater = '{%d,}' % runs
     l = ([e + repeater
           for e in PUNCT_CHAR
