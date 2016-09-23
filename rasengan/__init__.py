@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Sun Sep 18 23:05:32 2016 (-0400)
+| Last-Updated: Thu Sep 22 18:52:54 2016 (-0400)
 |           By: Pushpendre Rastogi
-|     Update #: 440
+|     Update #: 442
 '''
 from __future__ import print_function
 import collections
@@ -1664,6 +1664,53 @@ def ngramatize(l, n=2, bos='<BOS>'):
         return l
     l = [bos] * (n - 1) + l
     return [tuple(l[i:i + n]) for i in range(len(l) - (n - 1))]
+
+
+
+class NamespaceLite(collections.MutableMapping):
+    __hash__ = None
+
+    def __repr__(self):
+        return self.__name
+
+    def __init__(self, pfx, **kwargs):
+        self.__name = pfx + '_'.join(a + '~' + str(b) for (a,b) in kwargs.iteritems())
+        for key, val in kwargs.iteritems():
+            setattr(self, key, val)
+
+    def __contains__(self, key):
+        return key in self.__dict__
+
+    def __getitem__(self, key):
+        return self.__dict__[key]
+
+    def __setitem__(self, key, value):
+        setattr(self, key, value)
+
+    def __delitem__(self, key):
+        del self.__dict__[key]
+
+    def __iter__(self):
+        return iter(self.__dict__)
+
+    def __len__(self):
+        return len(self.__dict__)
+
+class OpenOverride(object):
+    def __init__(self, pfx, open_fnc):
+        self.pfx = pfx
+        self.open_fnc = open_fnc
+        return
+
+    def __call__(name, mode='r', buffering=None):
+        if mode == 'r':
+            try:
+                return self.open_fnc(name, mode, buffering)
+            except IOError:
+                return self.open_fnc(
+                    os.path.join(self.pfx, name), mode, buffering)
+        return self.open_fnc(name, mode, buffering)
+
 
 #  Local Variables:
 #  eval: (progn (eldoc-mode -1) (anaconda-mode -1) (flycheck-mode -1) (company-mode -1))
