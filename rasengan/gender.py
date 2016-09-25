@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
-import sexmachine.detector as detector
+try:
+    import sexmachine.detector as detector
+    Detector = detector.Detector()
+except ImportError:
+    pass
 PRONOUN_TO_GENDER = dict(him=0, his=0, he=0, she=1, her=1, hers=1)
 GENDER = { u'ÉDOUARD': 0,
  u'FRANÇOIS': 0,
@@ -5182,7 +5186,7 @@ GENDER = { u'ÉDOUARD': 0,
  u'LENE': 1,
  u'LENA': 1}
 
-d = detector.Detector()
+
 def gender_detector(word):
     ' RETURN : male, female, andy, mostly_female, mostly_male '
     if isinstance(word, str):
@@ -5192,4 +5196,4 @@ def gender_detector(word):
         return ('female' if GENDER[WORD] else 'male')
     except KeyError:
         Word = word.capitalize()
-        return d.get_gender(Word)
+        return Detector.get_gender(Word)

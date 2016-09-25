@@ -3,9 +3,9 @@
 | Description : Handy decorators and context managers for improved REPL experience.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Thu Sep 22 18:52:54 2016 (-0400)
+| Last-Updated: Sun Sep 25 02:12:19 2016 (-0400)
 |           By: Pushpendre Rastogi
-|     Update #: 442
+|     Update #: 464
 '''
 from __future__ import print_function
 import collections
@@ -656,14 +656,21 @@ def pipeline_dictionary(pattern_tokenize=0, lowercase=0):
 
 
 class TokenMapper(object):
+    '''
+    t2i = Token to index map
+    During construction call it.
+    '''
 
-    't2i = Token to index map'
-
-    def __init__(self):
+    def __init__(self, *args):
         self.t2i = {}
         self.vocab_size = 0
         self.i2t = None
         self.final = False
+        if len(args):
+            self.__call__(args)
+
+    def __len__(self):
+        return len(self.t2i)
 
     def __call__(self, tokens):
         l = []
@@ -682,11 +689,13 @@ class TokenMapper(object):
         return l
 
     def finalize(self, max_tok=None):
-        self.max_tok = max_tok
-        if max_tok is not None:
-            self.t2i['<BOS>'] = (max_tok - 1)
+        if max_tok is None:
+            max_tok = len(self.t2i)
+        self.t2i['<BOS>'] = max_tok
+        self.max_tok = len(self.t2i)
         self.i2t = dict((a, b) for (b, a) in self.t2i.iteritems())
         self.final = True
+        return self.t2i['<BOS>']
 
     def __getitem__(self, index):
         try:
@@ -1586,9 +1595,21 @@ def deduplicate_unhashables(lst):
 
 
 def groupby(fn, mode='r', predicate=None, yield_iter=False):
-    if predicate is None:
-        predicate = lambda x: x != '\n'
-    for k, v in itertools.groupby(open(fn, mode), predicate):
+    predicate = ((lambda x: x != '\n')
+                 if predicate is None
+                 else predicate)
+    # Since we can't reliably check whether a file is a bzipfile
+    # or a plain file, or a gzip file by just checking whether
+    # fn is instance of `file` therefore the best way to distinguish
+    # between a file object and a string seems to be to check whether
+    # the object has a `close` attribute or not.
+    # I could be overtly restrictive by checking instances of each
+    # type, file, gzip.GzipFile, bzip.BzipFile etc. but that seems
+    # to be too cumbersome.
+    grouper = (itertools.groupby(fn, predicate)
+               if hasattr(fn, 'close')
+               else itertools.groupby(open(fn, mode=mode), predicate))
+    for k, v in grouper:
         if k:
             yield (v if yield_iter else list(v))
 
@@ -1671,10 +1692,10 @@ class NamespaceLite(collections.MutableMapping):
     __hash__ = None
 
     def __repr__(self):
-        return self.__name
+        return self._name
 
     def __init__(self, pfx, **kwargs):
-        self.__name = pfx + '_'.join(a + '~' + str(b) for (a,b) in kwargs.iteritems())
+        self._name = pfx + ''.join('.%s~%s'%(a, str(b)) for (a,b) in kwargs.iteritems())
         for key, val in kwargs.iteritems():
             setattr(self, key, val)
 
@@ -1702,15 +1723,29 @@ class OpenOverride(object):
         self.open_fnc = open_fnc
         return
 
-    def __call__(name, mode='r', buffering=None):
+    def __call__(self, name, mode='r', buffering=None):
+        assert isinstance(name, str)
         if mode == 'r':
             try:
-                return self.open_fnc(name, mode, buffering)
+                return self.open_fnc(name, mode=mode, buffering=buffering)
             except IOError:
                 return self.open_fnc(
-                    os.path.join(self.pfx, name), mode, buffering)
-        return self.open_fnc(name, mode, buffering)
+                    os.path.join(self.pfx, name), mode=mode, buffering=buffering)
+        return self.open_fnc(name, mode=mode, buffering=buffering)
 
+def csr_mat_builder(iterator, shape, dtype='float32', verbose=0):
+    from scipy.sparse import csr_matrix
+    data = []
+    indices = []
+    indptr = [0]
+    for row_idx, row in enumerate(iterator):
+        if verbose > 0 and row_idx % verbose == 0:
+            print('@row:', row_idx, file=sys.stderr)
+        for j in sorted(row):
+            indices.append(j)
+            data.append(row[j])
+        indptr.append(len(indices))
+    return csr_matrix((data, indices, indptr), shape=shape, dtype=dtype)
 
 #  Local Variables:
 #  eval: (progn (eldoc-mode -1) (anaconda-mode -1) (flycheck-mode -1) (company-mode -1))
