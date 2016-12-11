@@ -1,29 +1,34 @@
 '''
 | Filename    : __init__.py
-| Description : Handy decorators and context managers for improved REPL experience.
+| Description : Reusable decorators and context managers for expeditious development.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Sun Sep 25 02:12:19 2016 (-0400)
+| Last-Updated: Sun Dec 11 04:10:22 2016 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 464
+|     Update #: 478
 '''
 from __future__ import print_function
+from . import print_hook
+from . import sPickle
+import BaseHTTPServer
+import base64
 import collections
 import contextlib
-import time
-import numpy
-import random
-from . import print_hook
-import sys
+import functools
 import itertools
+import numpy
 import os
+import pdb
+import random
 import re
-import base64
-import BaseHTTPServer
-import string
-from . import sPickle
-import termcolor
 import six
+import string
+import sys
+import time
+try:
+    import termcolor
+except ImportError:
+    pass
 try:
     import cPickle as pickle
 except ImportError:
@@ -37,14 +42,14 @@ try:
 except ImportError:
     pass
 try:
-    import ipdb as pdb
-except ImportError:
-    import pdb
-try:
     from unidecode import unidecode
 except ImportError:
     pass
-
+try:
+    import scipy.sparse
+    import scipy.misc
+except ImportError:
+    pass
 
 def print_indent_fn(text):
     if len(text) > 0:
@@ -673,6 +678,8 @@ class TokenMapper(object):
         return len(self.t2i)
 
     def __call__(self, tokens):
+        ''' Call this to get the index of tokens.
+        '''
         l = []
         for tok in tokens:
             i = None
@@ -698,6 +705,9 @@ class TokenMapper(object):
         return self.t2i['<BOS>']
 
     def __getitem__(self, index):
+        '''
+        Call this to get the token at index.
+        '''
         try:
             return self.i2t[index]
         except TypeError:
@@ -1285,9 +1295,6 @@ class TcpStdIOShim(object):
             self.http_daemon.server_close()
             self.stdio_proc.expect_proc.kill(15)
 
-import functools
-
-
 def memoize(obj):
     cache = obj.cache = {}
 
@@ -1299,10 +1306,13 @@ def memoize(obj):
         return cache[key]
     return memoizer
 
-PUNCT_CHAR = set(''.join(chr(e) for e in range(
+PUNCT_CHAR = frozenset(''.join(chr(e) for e in range(
     33, 48) + range(58, 65) + range(91, 97) + range(123, 127)))
-REGEX_SPECIAL_CHAR = set(r'[]().-|^{}*+$\?')
-
+REGEX_SPECIAL_CHAR = frozenset(r'[]().-|^{}*+$\?')
+PUNCT_MATCH_REGEX = re.compile(
+    '([%s])'%(''.join(
+        ('\\%s'%e if e in REGEX_SPECIAL_CHAR else e)
+        for e in PUNCT_CHAR)))
 
 @memoize
 def _clean_text_construct_regex(runs):
@@ -1666,8 +1676,7 @@ class GrayCombinatorialCounter(object):
 
 
 def exp_normalize(arr):
-    from scipy.misc import logsumexp
-    deno = logsumexp(arr)
+    deno = scipy.misc.logsumexp(arr)
     return [numpy.exp(e - deno) for e in arr]
 
 
@@ -1734,7 +1743,6 @@ class OpenOverride(object):
         return self.open_fnc(name, mode=mode, buffering=buffering)
 
 def csr_mat_builder(iterator, shape, dtype='float32', verbose=0):
-    from scipy.sparse import csr_matrix
     data = []
     indices = []
     indptr = [0]
@@ -1745,8 +1753,161 @@ def csr_mat_builder(iterator, shape, dtype='float32', verbose=0):
             indices.append(j)
             data.append(row[j])
         indptr.append(len(indices))
-    return csr_matrix((data, indices, indptr), shape=shape, dtype=dtype)
+    return scipy.sparse.csr_matrix((data, indices, indptr), shape=shape,
+                                   dtype=dtype)
 
-#  Local Variables:
-#  eval: (progn (eldoc-mode -1) (anaconda-mode -1) (flycheck-mode -1) (company-mode -1))
-#  End:
+
+class ConstantList(collections.MutableSequence):
+    def __init__(self, e, length):
+        self.e = e
+        self.l = length
+
+    def __repr__(self):
+        return '[%s]*%d'%(str(self.e), self.l)
+
+    def __eq__(self, other):
+        return (isinstance(other, ConstantList) and self.e == other.e and \
+                self.l == other.l)
+
+    def __contains__(self, e):
+        return e == self.e
+
+    def __getitem__(self, i):
+        if i < self.l:
+            return self.e
+        raise IndexError('list index out of range')
+
+    def __setitem__(self, _, __):
+        raise NotImplementedError()
+
+    def __delitem__(self, _):
+        raise NotImplementedError()
+
+    def __iter__(self):
+        return itertools.repeat(self.e, self.l)
+
+    def __len__(self):
+        return self.l
+
+    def insert(self, _, __):
+        raise NotImplementedError()
+
+def save_sparse_matrix(file_handle, m):
+    if scipy.sparse.isspmatrix_coo(m):
+        return numpy.savez(file_handle, row=m.row, col=m.col, data=m.data,
+                           shape=m.shape, type='coo')
+    elif scipy.sparse.isspmatrix_csr(m) or scipy.sparse.isspmatrix_csc(m):
+        type = ('csc' if scipy.sparse.isspmatrix_csc(m) else 'csr')
+        return numpy.savez(file_handle, data=m.data, indices=m.indices,
+                           indptr=m.indptr, shape=m.shape,
+                           type=type)
+    else:
+        raise NotImplementedError(
+            'Invalid type: '+type(m)+'. We have only implemented saving CSR,\n'
+            'CSC and COO because those are the most efficient formats to save.')
+
+def load_sparse_matrix(filename):
+    d = numpy.load(filename)
+    assert 'shape' in d and 'type' in d
+    if d['type'] == 'coo':
+        return scipy.sparse.coo_matrix(
+            (d['data'], (d['row'], d['col'])), shape=d['shape'])
+    elif d['type'] in ['csr', 'csc']:
+        constructor = (scipy.sparse.csc_matrix
+                       if d['type'] == 'csc'
+                       else scipy.sparse.csr_matrix)
+        return constructor((d['data'], d['indices'], d['indptr']),
+                           shape=d['shape'])
+    else:
+        raise NotImplementedError()
+
+def farthest_non_empty_row(lilmat):
+    assert scipy.sparse.isspmatrix_lil(lilmat)
+    for i in xrange(lilmat.shape[0]-1, -1, -1):
+        if len(lilmat.rows[i]) > 0:
+            return i+1
+    return 0
+
+
+
+class StreamingArrayMaker(object):
+    '''
+    An object to hold multiple sparse data matrices with corresponding rows, along
+    with their names. The update_1 method minimizes the number of method
+    calls since the data for a document is passed in one shot for all arrays.
+    '''
+    def __init__(self, categories, pfx=None, default_shape=(2000000, 2000000)):
+        self.categories = categories
+        if pfx is not None:
+            self.arr_list = None
+            self.ent_map = None
+            self.tm_list = None
+            self.load_from_pfx(pfx)
+        else:
+            self.arr_list = [scipy.sparse.lil_matrix(default_shape,
+                                                     dtype='int8')
+                             for e
+                             in self.categories]
+            self.ent_map = TokenMapper()
+            self.tm_list = [TokenMapper() for e in self.categories]
+        return
+
+    @staticmethod
+    def largest_non_empty_column(lilmat):
+        return max(max(lilmat.rows[i])
+                   for i
+                   in xrange(lilmat.shape[0])
+                   if len(lilmat.rows[i]))
+
+    @staticmethod
+    def tokenize(s):
+        return [e for e in re.split(PUNCT_MATCH_REGEX, s) if e != '']
+
+    def update_1(self, docid_str, cat_data):
+        '''
+        NOTE: This updation is fast only if the docid_str are
+        received in sorted order during repeated calls
+        '''
+        row_id = self.ent_map([docid_str])[0]
+        for i, data in enumerate(cat_data):
+            cols = self.tm_list[i](self.tokenize(data))
+            self.arr_list[i][row_id, cols] = 1
+        return
+
+    def finalize(self):
+        max_row = max(farthest_non_empty_row(e) for e in self.arr_list)
+        for i in range(len(self.categories)):
+            max_col = self.largest_non_empty_column(self.arr_list[i])
+            # Cut down the size of matrices
+            self.arr_list[i] = self.arr_list[i][:max_row, :max_col]
+            self.arr_list[i] = self.arr_list[i].tocoo()  # tocsr()
+            print(self.arr_list[i].shape)
+        return
+
+    def save_to_pfx(self, pfx):
+        self.ent_map.finalize()
+        for i in range(len(self.tm_list)):
+            self.tm_list[i].finalize()
+        fn = pfx+'_tokenmap.pkl'
+        with tictoc('Saving TokenMaps to %s'%fn):
+            pickle.dump([self.ent_map, self.tm_list], open(fn, 'wb'),
+                        protocol=-1)
+        for cat, arr in zip(self.categories, self.arr_list):
+            fn = '%s_%s.npz'%(pfx, cat)
+            with tictoc('Saving matrix for %s to %s'%(cat, fn)):
+                save_sparse_matrix(open(fn, 'wb'), arr)
+        return
+
+    def load_from_pfx(self, pfx):
+        with tictoc('Loading TokenMaps'):
+            self.ent_map, self.tm_list = pickle.load(open(pfx+'.pkl'))
+        self.arr_list = []
+        for cat in self.categories:
+            self.arr_list.append(
+                load_sparse_matrix(open('%s_%s.npz'%(pfx, cat), 'rb')))
+        return
+
+
+def print_proc_info():
+    pid = os.getpid()
+    print(pid, file=sys.stderr)
