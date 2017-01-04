@@ -3,9 +3,9 @@
 | Description : Reusable decorators and context managers for expeditious development.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Sun Dec 11 04:10:22 2016 (-0500)
-|           By: Pushpendre Rastogi
-|     Update #: 478
+| Last-Updated: Wed Jan  4 14:09:09 2017 (-0500)
+|           By: System User
+|     Update #: 479
 '''
 from __future__ import print_function
 from . import print_hook
@@ -1911,3 +1911,32 @@ class StreamingArrayMaker(object):
 def print_proc_info():
     pid = os.getpid()
     print(pid, file=sys.stderr)
+
+
+
+def print_config(msg=None, numpy=0, hostname=1, ps=1):
+    import numpy
+    import socket
+    import os
+    import psutil
+    import sys
+    try:
+        if numpy:
+            numpy.show_config()
+        if msg is not None:
+            print msg
+        if hostname:
+            print 'hostname', socket.gethostname()
+        pid = os.getpid()
+        print >> sys.stderr, 'pid', pid
+        proc_stat = dict(e.split(':') for e in open('/proc/%d/status'%pid))
+        print >> sys.stderr, 'VmHWM', proc_stat["VmHWM"] \
+            'VmRSS', proc_stat["VmRSS"], \
+            'VmSwap', proc_stat["VmSwap"], \
+            'Threads', proc_stat["Threads"]
+        p = psutil.Process(pid)
+        print >> sys.stderr, 'CPU%        ',  '%1.2f%%'%p.cpu_percent(interval=None)
+        print >> sys.stderr, 'MEM%        ', '%1.2f%%'%p.memory_percent()
+    except Exception as e:
+        print >> sys.stderr, e
+    return
