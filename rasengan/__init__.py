@@ -3,9 +3,9 @@
 | Description : Reusable decorators and context managers for expeditious development.
 | Author      : Pushpendre Rastogi
 | Created     : Thu Oct 29 19:43:24 2015 (-0400)
-| Last-Updated: Wed Jan  4 14:09:09 2017 (-0500)
+| Last-Updated: Wed Jan  4 14:25:03 2017 (-0500)
 |           By: System User
-|     Update #: 479
+|     Update #: 484
 '''
 from __future__ import print_function
 from . import print_hook
@@ -1921,22 +1921,21 @@ def print_config(msg=None, numpy=0, hostname=1, ps=1):
     import psutil
     import sys
     try:
-        if numpy:
-            numpy.show_config()
+        # if numpy != 0:
+        #     numpy.show_config()
         if msg is not None:
-            print msg
+            print(msg, file=sys.stderr)
         if hostname:
-            print 'hostname', socket.gethostname()
+            print('hostname', socket.gethostname(), file=sys.stderr)
         pid = os.getpid()
-        print >> sys.stderr, 'pid', pid
+        print('pid', pid, file=sys.stderr)
         proc_stat = dict(e.split(':') for e in open('/proc/%d/status'%pid))
-        print >> sys.stderr, 'VmHWM', proc_stat["VmHWM"] \
-            'VmRSS', proc_stat["VmRSS"], \
-            'VmSwap', proc_stat["VmSwap"], \
-            'Threads', proc_stat["Threads"]
+        print(' VmHWM', proc_stat["VmHWM"], 'VmRSS', proc_stat["VmRSS"],
+              'VmSwap', proc_stat["VmSwap"], 'Threads', proc_stat["Threads"],
+              file=sys.stderr)
         p = psutil.Process(pid)
-        print >> sys.stderr, 'CPU%        ',  '%1.2f%%'%p.cpu_percent(interval=None)
-        print >> sys.stderr, 'MEM%        ', '%1.2f%%'%p.memory_percent()
+        print(' CPU         %1.2f%%'%p.cpu_percent(interval=None), file=sys.stderr)
+        print(' MEM         %1.2f%%'%p.memory_percent(), file=sys.stderr)
     except Exception as e:
-        print >> sys.stderr, e
+        print(e, file=sys.stderr)
     return
