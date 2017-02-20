@@ -4,9 +4,9 @@
 | Description : Information Retrieval Metrics.
 | Author      : Brandyn White
 | Created     : Mon Feb 22 00:37:35 2016 (-0500)
-| Last-Updated: Mon Feb 22 00:42:43 2016 (-0500)
+| Last-Updated: Mon Feb 20 00:45:21 2017 (-0500)
 |           By: Pushpendre Rastogi
-|     Update #: 2
+|     Update #: 3
 Forked From bwhite/rank_metrics.py
 
 Useful Resources:
@@ -18,6 +18,9 @@ Learning to Rank for Information Retrieval (Tie-Yan Liu)
 '''
 import numpy as np
 
+def reciprocal_rank(r):
+    r = np.asarray(r).nonzero()[0]
+    return ((1./(r[0] + 1)) if r.size else 0)
 
 def mean_reciprocal_rank(rs):
     """Score is reciprocal of the rank of the first relevant item
