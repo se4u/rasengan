@@ -16,4 +16,5 @@ setup(name=package,
       version=version,
       description="A powerful mix of decorators and context managers.",
       url='https://github.com/se4u/rasengan',
-      author='Pushpendre Rastogi')
+      author='Pushpendre Rastogi',
+      packages=['rasengan'])
